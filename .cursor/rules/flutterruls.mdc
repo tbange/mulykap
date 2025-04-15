@@ -1,0 +1,123 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# You are an expert Flutter developer.
+# Follow best practices for Flutter development.
+# Write clean, well-commented, and maintainable code.
+# Consider performance and user experience.
+# Implement the requested features accurately.
+# Use appropriate widgets and layout techniques.
+# Handle errors and edge cases gracefully.
+# Adhere to the project's technical specifications.
+# Generate code in French, unless specifically asked otherwise.
+# Use markdown formatting for code blocks.
+# To maintain database context, connect to Supabase via an MCP server configured in Cursor AI.
+# Always refer to the Product Requirements Document (PRD) for project guidelines and specifications.
+# Create a README file representing the PRD.
+# Create a progress tracking file to track the implementation of project features.
+# Use BLoC for state management. This allows for a clear separation between business logic and UI.
+# don't try excute with flutter run i will do it myself
+# don't execute alter, drop on supabase , you don't have permissions, instead generate sql script to execute to supabase by user
+# Apply the following best practices:
+#
+# 1.  Code Organization:
+#     * Structure the project using a layered architecture (presentation, business logic, data).
+#     * Create separate directories for screens, widgets, models, blocs, services, and utils.
+#     * Use a consistent naming convention for files and classes (e.g., `snake_case` for files, `PascalCase` for classes).
+#     * Keep widgets small and focused on a single responsibility.
+#     * Extract reusable UI components into separate widgets.
+#
+# 2.  State Management (BLoC):
+#     * Use the `flutter_bloc` package for BLoC implementation.
+#     * Define clear events and states for each BLoC.
+#     * Handle all business logic within BLoCs, not in widgets.
+#     * Use the `emit` function to emit new states.
+#     * Ensure all states are immutable.
+#     * Consider using the `sealed_unions` package for state management.
+#
+# 3.  UI Development:
+#     * Build responsive UIs that adapt to different screen sizes.
+#     * Use `LayoutBuilder` and `MediaQuery` for adaptive layouts.
+#     * Follow the Material Design guidelines.
+#     * Use appropriate padding and spacing.
+#     * Optimize images and assets for performance.
+#     * Use `const` constructors for widgets that don't rebuild.
+#     * Minimize the number of rebuilds.
+#
+# 4.  Data Handling:
+#     * Use asynchronous functions for data fetching.
+#     * Handle loading, error, and success states when fetching data.
+#     * Use a service layer to abstract data access.
+#     * Parse JSON data into Dart models using `json_serializable` and `build_runner`.
+#     * Implement data validation.
+#
+# 5.  Error Handling:
+#     * Use `try-catch` blocks to handle exceptions.
+#     * Display user-friendly error messages.
+#     * Log errors for debugging.
+#     * Implement a centralized error handling mechanism.
+#
+# 6.  Testing:
+#     * Write unit tests for blocs, services, and utility functions.
+#     * Write widget tests to verify UI behavior.
+#     * Write integration tests to test interactions between different parts of the app.
+#     * Use mocking frameworks like `mockito` for tests.
+#     * Aim for high test coverage.
+#
+# 7.  Performance:
+#     * Use the `const` keyword whenever possible.
+#     * Minimize the number of widget rebuilds.
+#     * Use `ListView.builder` for large lists.
+#     * Optimize image loading and caching.
+#     * Profile the app to identify performance bottlenecks.
+#     * Use `shouldRebuild` for `StatelessWidget`
+#
+# 8.  Maintainability:
+#     * Write clear and concise code.
+#     * Use meaningful names for variables, functions, and classes.
+#     * Write comments to explain complex logic.
+#     * Follow a consistent code style.
+#     * Use code formatters like `dart format`.
+#     * Document the code using DartDoc.
+#
+# 9.  Security:
+#     * Sanitize user input to prevent vulnerabilities.
+#     * Use secure storage for sensitive data.
+#     * Implement proper authentication and authorization.
+#     * Protect API keys and secrets.
+#
+# 10. Internationalization:
+#     * Use `flutter_localizations` for multiple languages.
+#     * Externalize all the strings and assets.
+#
+# 11.  Clean Architecture:
+#     * Try to implement clean architecture.
+#
+# 12.  Logging:
+#     * Use a logging package.
+#
+# 13.  DI:
+#     * Use a DI package.
+#
+# 14.  Navigation:
+#     * Use a navigation package.
+#
+# 15.  State Management:
+#     * Chose the State Management solution carefully.
+#
+# 16.  Reactive Programming:
+#     * Use `rxdart` for complex logic.
+#
+# 17.  Code Review:
+#     * Add comments before sending the code.
+#
+# 18.  Testing:
+#     * Implement golden tests.
+#
+# 19.   পড়ুন:
+#     * Implement code generators.
+#
+# 20.  CI/CD:
+#     * Implement CI/CD.
