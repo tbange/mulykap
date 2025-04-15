@@ -44,6 +44,13 @@ class _RouteStopFormScreenState extends State<RouteStopFormScreen> {
   
   // Index de l'étape actuelle dans le Stepper
   int _currentStep = 0;
+  
+  // État du processus d'ajout d'arrêt
+  bool _isAddingStop = false;
+  bool _finalStepReached = false;
+  
+  // Pour stockage temporaire des données du nouvel arrêt
+  _StopFormData? _currentStopData;
 
   @override
   void initState() {
@@ -103,59 +110,117 @@ class _RouteStopFormScreenState extends State<RouteStopFormScreen> {
           ),
         ];
       } else {
-        // Mode création - préremplir avec la ville de départ et d'arrivée de l'itinéraire
-        final departureCityId = route.departureCityId;
-        final arrivalCityId = route.arrivalCityId;
-        
-        // Si aucun arrêt n'existe encore, créer les arrêts de départ et d'arrivée
+        // Mode création - Nouveau comportement dynamique
+        // On commence seulement avec le point de départ
         if (existingStops.isEmpty) {
           _stopsData = [
             _StopFormData(
               id: const Uuid().v4(),
-              cityId: departureCityId,
+              cityId: route.departureCityId,
               stopOrder: 1,
               stopType: StopType.depart,
               distanceFromPrevious: 0,
               durationFromPrevious: Duration.zero,
               waitingTime: Duration.zero,
             ),
-            _StopFormData(
-              id: const Uuid().v4(),
-              cityId: arrivalCityId,
-              stopOrder: 2,
-              stopType: StopType.arrivee,
-              distanceFromPrevious: route.distanceKm,
-              durationFromPrevious: route.estimatedDuration,
-              waitingTime: Duration.zero,
-            ),
-          ];
-        } else {
-          // Si des arrêts existent déjà, proposer d'ajouter un arrêt intermédiaire
-          // Trouver le dernier ordre d'arrêt
-          final maxOrder = existingStops.map((s) => s.stopOrder).reduce((a, b) => a > b ? a : b);
-          
-          // Par défaut, ajouter un arrêt intermédiaire avant la dernière étape
-          _stopsData = [
-            _StopFormData(
-              id: const Uuid().v4(),
-              cityId: '',
-              stopOrder: maxOrder,
-              stopType: StopType.intermediaire,
-              distanceFromPrevious: 0,
-              durationFromPrevious: Duration.zero,
-              waitingTime: Duration.zero,
-            ),
           ];
           
-          // Réordonner les arrêts existants si nécessaire
-          final arrivalStop = existingStops.firstWhere(
-            (stop) => stop.stopType == StopType.arrivee,
-            orElse: () => existingStops.last,
+          // Initialiser le formulaire pour le second arrêt (premier arrêt intermédiaire)
+          _currentStopData = _StopFormData(
+            id: const Uuid().v4(),
+            cityId: '', // À sélectionner par l'utilisateur
+            stopOrder: 2,
+            stopType: StopType.intermediaire,
+            distanceFromPrevious: 0, // À définir par l'utilisateur
+            durationFromPrevious: Duration.zero, // À définir par l'utilisateur
+            waitingTime: const Duration(minutes: 10), // Temps d'arrêt par défaut
           );
           
-          if (arrivalStop.stopOrder == maxOrder) {
-            _stopsData[0] = _stopsData.first.copyWith(stopOrder: maxOrder);
-            // On modifiera l'ordre de l'arrêt d'arrivée lors de l'enregistrement
+          _isAddingStop = true;
+        } else {
+          // Si des arrêts existent déjà mais qu'on veut en ajouter un nouveau
+          // Trier les arrêts existants
+          final sortedStops = List<RouteStopModel>.from(existingStops)
+            ..sort((a, b) => a.stopOrder.compareTo(b.stopOrder));
+          
+          // Vérifier si tous les arrêts sont déjà définis
+          bool hasArrivalStop = sortedStops.any((stop) => stop.stopType == StopType.arrivee);
+          
+          if (hasArrivalStop) {
+            // Si l'itinéraire est déjà complet, on prépare pour insertion
+            int insertIndex = 1; // Par défaut, après le départ
+            if (sortedStops.length > 2) {
+              // Trouver le plus grand écart entre deux arrêts
+              double maxGap = 0;
+              for (int i = 0; i < sortedStops.length - 1; i++) {
+                final nextStop = sortedStops[i + 1];
+                
+                if (nextStop.distanceFromPrevious == null) continue;
+                
+                if (nextStop.distanceFromPrevious! > maxGap) {
+                  maxGap = nextStop.distanceFromPrevious!;
+                  insertIndex = i + 1;
+                }
+              }
+            }
+            
+            // Charger les arrêts existants pour les afficher
+            _stopsData = sortedStops.map((stop) => _StopFormData(
+              id: stop.id,
+              cityId: stop.cityId,
+              stopOrder: stop.stopOrder,
+              stopType: stop.stopType,
+              distanceFromPrevious: stop.distanceFromPrevious,
+              durationFromPrevious: stop.durationFromPrevious,
+              waitingTime: stop.waitingTime,
+            )).toList();
+            
+            // Créer un nouvel arrêt intermédiaire à insérer avant l'arrivée
+            int arrivalStopIndex = _stopsData.indexWhere((s) => s.stopType == StopType.arrivee);
+            if (arrivalStopIndex > 0) {
+              _currentStopData = _StopFormData(
+                id: const Uuid().v4(),
+                cityId: '', // À sélectionner
+                stopOrder: arrivalStopIndex,
+                stopType: StopType.intermediaire,
+                distanceFromPrevious: 0,
+                durationFromPrevious: Duration.zero,
+                waitingTime: const Duration(minutes: 10),
+              );
+              
+              _isAddingStop = true;
+            }
+          } else {
+            // S'il n'y a pas encore d'arrêt d'arrivée, on continue le processus
+            // Chargement des arrêts existants
+            _stopsData = sortedStops.map((stop) => _StopFormData(
+              id: stop.id,
+              cityId: stop.cityId,
+              stopOrder: stop.stopOrder,
+              stopType: stop.stopType,
+              distanceFromPrevious: stop.distanceFromPrevious,
+              durationFromPrevious: stop.durationFromPrevious,
+              waitingTime: stop.waitingTime,
+            )).toList();
+            
+            // Nouveau step: arrêt intermédiaire ou d'arrivée selon le contexte
+            int nextOrder = _stopsData.length + 1;
+            
+            // Décider si c'est l'arrêt final (arrivée)
+            bool isLastStop = nextOrder >= 3; // Au minimum 3 arrêts (départ, intermédiaire, arrivée)
+            
+            _currentStopData = _StopFormData(
+              id: const Uuid().v4(),
+              cityId: isLastStop ? route.arrivalCityId : '',
+              stopOrder: nextOrder,
+              stopType: isLastStop ? StopType.arrivee : StopType.intermediaire,
+              distanceFromPrevious: 0, // À définir
+              durationFromPrevious: Duration.zero, // À définir
+              waitingTime: isLastStop ? Duration.zero : const Duration(minutes: 10),
+            );
+            
+            _isAddingStop = true;
+            _finalStepReached = isLastStop;
           }
         }
       }
@@ -175,7 +240,68 @@ class _RouteStopFormScreenState extends State<RouteStopFormScreen> {
     }
   }
 
-  // Enregistrer les arrêts
+  // Nouvelle méthode pour trouver les villes intermédiaires potentielles
+  List<CityModel> _findPotentialIntermediateCities(
+    List<CityModel> allCities, 
+    CityModel departureCity, 
+    CityModel arrivalCity
+  ) {
+    List<CityModel> result = [];
+    
+    // Exemple concret: pour l'itinéraire Lubumbashi -> Kolwezi
+    if ((departureCity.name == 'Lubumbashi' && arrivalCity.name == 'Kolwezi') ||
+        (departureCity.name == 'Kolwezi' && arrivalCity.name == 'Lubumbashi')) {
+      // Ajouter Likasi et Fungurume dans le bon ordre
+      final likasi = allCities.firstWhere(
+        (city) => city.name == 'Likasi',
+        orElse: () => CityModel(
+          id: '',
+          name: 'Likasi',
+          code: 'LIK',
+          province: 'Haut-Katanga',
+          country: 'RDC',
+          isMain: true
+        )
+      );
+      
+      final fungurume = allCities.firstWhere(
+        (city) => city.name == 'Fungurume',
+        orElse: () => CityModel(
+          id: '',
+          name: 'Fungurume',
+          code: 'FUN',
+          province: 'Lualaba', 
+          country: 'RDC',
+          isMain: false
+        )
+      );
+      
+      if (departureCity.name == 'Lubumbashi') {
+        if (likasi.id.isNotEmpty) result.add(likasi);
+        if (fungurume.id.isNotEmpty) result.add(fungurume);
+      } else {
+        if (fungurume.id.isNotEmpty) result.add(fungurume);
+        if (likasi.id.isNotEmpty) result.add(likasi);
+      }
+      
+      return result;
+    }
+    
+    // Méthode générale: trouver les villes principales entre le départ et l'arrivée
+    // Cette logique simplifiée sélectionne les villes principales qui pourraient être des arrêts intermédiaires
+    final potentialIntermediateCities = allCities.where((city) => 
+      city.id != departureCity.id && 
+      city.id != arrivalCity.id &&
+      city.isMain == true
+    ).toList();
+    
+    // Trier en fonction de la proximité géographique (simplifiée)
+    // Pour un vrai système, une logique plus complexe de géolocalisation serait nécessaire
+    return potentialIntermediateCities.take(3).toList(); // Limiter à 3 villes intermédiaires max
+  }
+
+  // Enregistrer toutes les étapes
+  @override
   Future<void> _saveStops() async {
     setState(() {
       _isLoading = true;
@@ -183,9 +309,30 @@ class _RouteStopFormScreenState extends State<RouteStopFormScreen> {
     });
     
     try {
+      // Si on est en train d'ajouter un arrêt, l'ajouter d'abord à la liste
+      if (_isAddingStop && _currentStopData != null) {
+        if (_currentStopData!.cityId.isEmpty) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Veuillez sélectionner une ville pour tous les arrêts")),
+          );
+          return;
+        }
+        
+        _stopsData.add(_currentStopData!);
+      }
+      
+      // Trier les arrêts par ordre et réassigner les numéros d'ordre de manière séquentielle
+      _stopsData.sort((a, b) => a.stopOrder.compareTo(b.stopOrder));
+      for (int i = 0; i < _stopsData.length; i++) {
+        _stopsData[i] = _stopsData[i].copyWith(stopOrder: i + 1);
+      }
+      
+      // Dans le cas de mise à jour d'un arrêt
       if (widget.stopId != null) {
-        // Mise à jour d'un arrêt existant
-        final stopData = _stopsData.first;
+        final stopData = _stopsData.firstWhere((s) => s.id == widget.stopId);
         final updatedStop = RouteStopModel(
           id: stopData.id,
           routeId: widget.routeId,
@@ -199,7 +346,22 @@ class _RouteStopFormScreenState extends State<RouteStopFormScreen> {
         
         await _routeStopRepository.updateStop(updatedStop);
       } else {
-        // Création de nouveaux arrêts
+        // Pour la création/configuration initiale d'arrêts
+        
+        // Supprimer d'abord tous les arrêts existants pour éviter les conflits
+        if (_existingStops.isNotEmpty) {
+          await _routeStopRepository.deleteAllStopsForRoute(widget.routeId);
+        }
+        
+        // Vérifier l'unicité des stop_order pour un dernier contrôle
+        final stopOrders = _stopsData.map((s) => s.stopOrder).toList();
+        final uniqueStopOrders = stopOrders.toSet().toList();
+        
+        if (stopOrders.length != uniqueStopOrders.length) {
+          throw Exception("Il y a des numéros d'ordre en double. Veuillez réessayer.");
+        }
+        
+        // Créer les nouveaux arrêts
         final stopsToCreate = _stopsData.map((stopData) => RouteStopModel(
           id: stopData.id,
           routeId: widget.routeId,
@@ -211,34 +373,12 @@ class _RouteStopFormScreenState extends State<RouteStopFormScreen> {
           waitingTime: stopData.waitingTime,
         )).toList();
         
-        // Si des arrêts existants doivent être mis à jour (comme l'ordre)
-        final existingStopsToUpdate = <RouteStopModel>[];
-        
-        // Si on ajoute un arrêt intermédiaire, il faut mettre à jour l'ordre
-        // des arrêts suivants
-        if (_existingStops.isNotEmpty && stopsToCreate.length == 1) {
-          final newStopOrder = stopsToCreate.first.stopOrder;
-          
-          for (final stop in _existingStops) {
-            if (stop.stopOrder >= newStopOrder) {
-              existingStopsToUpdate.add(stop.copyWith(
-                stopOrder: stop.stopOrder + 1,
-              ));
-            }
-          }
-        }
-        
-        // Mettre à jour les arrêts existants d'abord
-        for (final stop in existingStopsToUpdate) {
-          await _routeStopRepository.updateStop(stop);
-        }
-        
-        // Puis créer les nouveaux arrêts
+        // Créer tous les arrêts en une seule opération
         await _routeStopRepository.createMultipleStops(stopsToCreate);
       }
       
       if (mounted) {
-        Navigator.of(context).pop(true); // Retourner success
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       setState(() {
@@ -316,67 +456,279 @@ class _RouteStopFormScreenState extends State<RouteStopFormScreen> {
       appBar: AppBar(
         title: Text(widget.stopId != null 
           ? l10n.editStop 
-          : _existingStops.isEmpty 
-              ? "Configuration des arrêts" 
-              : l10n.addStop
+          : "Configuration des arrêts"
         ),
       ),
       body: Column(
         children: [
           Expanded(
-            child: Stepper(
-              type: StepperType.vertical,
-              currentStep: _currentStep,
-              onStepContinue: () {
-                if (_currentStep < _stopsData.length - 1) {
-                  setState(() {
-                    _currentStep++;
-                  });
-                } else {
+            child: _isAddingStop 
+                ? _buildAddStopForm(context) 
+                : _buildStepperView(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Nouvelle méthode pour construire le Stepper des arrêts existants
+  Widget _buildStepperView(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: Stepper(
+            type: StepperType.vertical,
+            currentStep: _currentStep,
+            onStepContinue: () {
+              if (_currentStep < _stopsData.length - 1) {
+                setState(() {
+                  _currentStep++;
+                });
+              } else {
+                // Au dernier pas, permettre d'ajouter un nouvel arrêt ou terminer
+                if (hasArrivalStop()) {
                   _saveStops();
-                }
-              },
-              onStepCancel: () {
-                if (_currentStep > 0) {
-                  setState(() {
-                    _currentStep--;
-                  });
                 } else {
-                  _cancel();
+                  setState(() {
+                    _isAddingStop = true;
+                  });
                 }
-              },
-              controlsBuilder: (context, details) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
-                  child: Row(
+              }
+            },
+            onStepCancel: () {
+              if (_currentStep > 0) {
+                setState(() {
+                  _currentStep--;
+                });
+              } else {
+                _cancel();
+              }
+            },
+            onStepTapped: (index) {
+              setState(() {
+                _currentStep = index;
+              });
+            },
+            controlsBuilder: (context, details) {
+              bool isLastStep = _currentStep >= _stopsData.length - 1;
+              bool canAddIntermediateStop = _stopsData.isNotEmpty;
+              
+              return Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: details.onStepContinue,
+                      child: Text(isLastStep && hasArrivalStop()
+                          ? "Enregistrer"
+                          : "Suivant"),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: details.onStepCancel,
+                      child: Text(_currentStep > 0 ? "Précédent" : "Annuler"),
+                    ),
+                  ],
+                ),
+              );
+            },
+            steps: _buildSteps(context),
+          ),
+        ),
+        if (_stopsData.isNotEmpty) 
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.add_location_alt),
+                  label: const Text("Ajouter un arrêt intermédiaire"),
+                  onPressed: () {
+                    _showInsertStopDialog();
+                  },
+                ),
+                ElevatedButton(
+                  onPressed: _saveStops,
+                  child: const Text("Enregistrer"),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Ajouter cette méthode pour vérifier si on a déjà un arrêt d'arrivée
+  bool hasArrivalStop() {
+    return _stopsData.any((stop) => stop.stopType == StopType.arrivee) || 
+           _existingStops.any((stop) => stop.stopType == StopType.arrivee);
+  }
+
+  // Ajouter cette méthode pour montrer un dialogue permettant d'insérer un arrêt à une position spécifique
+  void _showInsertStopDialog() {
+    // Identifier la position actuelle dans le Stepper
+    int insertAfterIndex = _currentStep;
+    
+    // Déterminer la position optimale pour insertion
+    // Si on est sur le dernier arrêt et que c'est l'arrivée, insérer avant
+    if (insertAfterIndex >= _stopsData.length - 1 && 
+        _stopsData.isNotEmpty && 
+        _stopsData.last.stopType == StopType.arrivee) {
+      insertAfterIndex = _stopsData.length - 2;
+    }
+    
+    // S'assurer que l'index est valide
+    insertAfterIndex = insertAfterIndex.clamp(0, _stopsData.length - 1);
+    
+    // Déterminer l'ordre du nouvel arrêt
+    int newStopOrder = _stopsData[insertAfterIndex].stopOrder + 1;
+    
+    // Initialiser le nouvel arrêt intermédiaire
+    _currentStopData = _StopFormData(
+      id: const Uuid().v4(),
+      cityId: '',
+      stopOrder: newStopOrder,
+      stopType: StopType.intermediaire,
+      distanceFromPrevious: 0,
+      durationFromPrevious: Duration.zero,
+      waitingTime: const Duration(minutes: 10),
+    );
+    
+    setState(() {
+      _isAddingStop = true;
+    });
+  }
+
+  // Nouvelle version qui gère mieux l'insertion d'arrêts
+  Widget _buildAddStopForm(BuildContext context) {
+    final stopData = _currentStopData!;
+    final stopType = stopData.stopType;
+    final isFinalStep = stopType == StopType.arrivee;
+    
+    String title;
+    switch (stopType) {
+      case StopType.depart:
+        title = "Point de départ";
+        break;
+      case StopType.arrivee:
+        title = "Point d'arrivée";
+        break;
+      default:
+        title = "Arrêt intermédiaire";
+    }
+    
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  _StopForm(
+                    stopData: stopData,
+                    cities: _cities.where((city) => 
+                      // Filtrer pour ne pas proposer les villes déjà utilisées comme arrêts
+                      !_stopsData.any((stop) => stop.cityId == city.id) || 
+                      // Sauf si c'est la ville actuelle qu'on édite
+                      stopData.cityId == city.id
+                    ).toList(),
+                    onChanged: (newData) {
+                      setState(() {
+                        _currentStopData = newData;
+                      });
+                    },
+                    showRemoveButton: false,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ElevatedButton(
-                        onPressed: details.onStepContinue,
-                        child: Text(_currentStep < _stopsData.length - 1
-                            ? "Suivant"
-                            : "Enregistrer"),
-                      ),
-                      const SizedBox(width: 8),
                       TextButton(
-                        onPressed: details.onStepCancel,
-                        child: Text(_currentStep > 0 ? "Précédent" : l10n.cancel),
+                        onPressed: () {
+                          setState(() {
+                            _isAddingStop = false;
+                          });
+                        },
+                        child: const Text("Annuler"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          // Vérifier que les champs obligatoires sont remplis
+                          if (stopData.cityId.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Veuillez sélectionner une ville")),
+                            );
+                            return;
+                          }
+                          
+                          // Déterminer où insérer le nouvel arrêt
+                          setState(() {
+                            // Si nous insérons un arrêt intermédiaire
+                            if (stopType == StopType.intermediaire) {
+                              // Trouver où insérer l'arrêt en fonction de son ordre
+                              int insertIndex = 0;
+                              while (insertIndex < _stopsData.length && 
+                                    _stopsData[insertIndex].stopOrder < stopData.stopOrder) {
+                                insertIndex++;
+                              }
+                              
+                              // Insérer à la position déterminée
+                              _stopsData.insert(insertIndex, stopData);
+                              
+                              // Réajuster les ordres de tous les arrêts
+                              for (int i = 0; i < _stopsData.length; i++) {
+                                _stopsData[i] = _stopsData[i].copyWith(
+                                  stopOrder: i + 1,
+                                  // Ajuster le type pour s'assurer que le dernier est bien arrivée
+                                  stopType: i == 0 
+                                      ? StopType.depart 
+                                      : (i == _stopsData.length - 1 && hasArrivalStop())
+                                          ? StopType.arrivee
+                                          : _stopsData[i].stopType,
+                                );
+                              }
+                            } else {
+                              // Pour le départ et l'arrivée, simplement ajouter
+                              _stopsData.add(stopData);
+                              _stopsData.sort((a, b) => a.stopOrder.compareTo(b.stopOrder));
+                              
+                              // Réassigner les ordres séquentiellement
+                              for (int i = 0; i < _stopsData.length; i++) {
+                                _stopsData[i] = _stopsData[i].copyWith(stopOrder: i + 1);
+                              }
+                            }
+                            
+                            // Revenir à la vue du Stepper
+                            _isAddingStop = false;
+                            
+                            // Si on a ajouté l'arrêt d'arrivée, marquer comme terminé
+                            if (stopType == StopType.arrivee) {
+                              _finalStepReached = true;
+                            }
+                          });
+                        },
+                        child: const Text("Ajouter cet arrêt"),
                       ),
                     ],
                   ),
-                );
-              },
-              steps: _buildSteps(context),
+                ],
+              ),
             ),
           ),
         ],
       ),
-      floatingActionButton: widget.stopId == null && _existingStops.isEmpty
-          ? FloatingActionButton(
-              onPressed: _addStopData,
-              tooltip: "Ajouter un arrêt intermédiaire",
-              child: const Icon(Icons.add),
-            )
-          : null,
     );
   }
 

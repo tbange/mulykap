@@ -9,6 +9,8 @@ import 'package:mulykap_app/features/routes/data/repositories/route_repository.d
 import 'package:mulykap_app/features/routes/data/repositories/route_stop_repository.dart';
 import 'package:mulykap_app/features/routes/presentation/bloc/route_bloc.dart';
 import 'package:mulykap_app/features/routes/presentation/screens/routes_screen.dart';
+import 'package:mulykap_app/features/routes/presentation/screens/stops_screen.dart';
+import 'package:mulykap_app/features/buses/data/repositories/city_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DashboardContent extends StatelessWidget {
@@ -59,7 +61,26 @@ class DashboardContent extends StatelessWidget {
           ),
         );
       case 3:
-        return _buildPlaceholder('Arrêts');
+        // Créer les dépendances pour l'écran des arrêts
+        final supabaseClient = Supabase.instance.client;
+        final routeRepository = RouteRepository(supabaseClient: supabaseClient);
+        final routeStopRepository = RouteStopRepository(supabaseClient: supabaseClient);
+        final cityRepository = CityRepository(supabaseClient: supabaseClient);
+        
+        return MultiRepositoryProvider(
+          providers: [
+            RepositoryProvider<RouteRepository>.value(
+              value: routeRepository,
+            ),
+            RepositoryProvider<RouteStopRepository>.value(
+              value: routeStopRepository,
+            ),
+            RepositoryProvider<CityRepository>.value(
+              value: cityRepository,
+            ),
+          ],
+          child: const StopsScreen(),
+        );
       case 4:
         return _buildPlaceholder('Voyages Récurrents');
       case 5:

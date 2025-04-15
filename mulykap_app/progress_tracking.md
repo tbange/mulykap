@@ -43,8 +43,8 @@
 ### Fonctionnalités métier
 - [ ] Gestion des utilisateurs
 - [x] Gestion de la flotte de bus
-- [ ] Gestion des itinéraires
-- [ ] Gestion des arrêts
+- [x] Gestion des itinéraires
+- [x] Gestion des arrêts
 - [ ] Gestion des voyages récurrents
 - [ ] Gestion des chauffeurs
 - [x] Gestion des agences
@@ -64,7 +64,7 @@
 2. ~~Implémenter l'écran de gestion des bus (étape fondamentale pour d'autres fonctionnalités)~~ ✓
 3. ~~Implémenter l'écran de gestion des agences~~ ✓
 4. ~~Implémenter l'écran de gestion des villes~~ ✓
-5. Développer l'écran de gestion des itinéraires et des arrêts
+5. ~~Développer l'écran de gestion des itinéraires et des arrêts~~ ✓
 6. Implémenter l'écran de chauffeurs
 7. Développer l'écran de gestion des voyages et voyages récurrents
 
@@ -88,6 +88,8 @@
 - Résolu : Problème avec la fonctionnalité d'inscription (création des profils utilisateurs dans Supabase)
 - Résolu : Amélioration du menu latéral pour inclure toutes les fonctionnalités métier
 - Résolu : Problème avec la colonne 'country' manquante dans la table 'cities'
+- Résolu : Problème de contrainte unique pour les arrêts d'itinéraires
+- Résolu : Problème de contexte lors de l'édition des arrêts dans un dialogue
 - En cours : Optimisation des performances pour les zones à faible connectivité 
 
 ## Dernières mises à jour
@@ -100,3 +102,7 @@
 - Implémentation du drawer pour les détails des bus et agences
 - Implémentation de listes extensibles pour voir les bus associés à chaque agence
 - Amélioration des formulaires d'édition pour les agences et les bus 
+- Implémentation complète de la gestion des itinéraires avec configuration des arrêts
+- Implémentation d'un système dynamique pour ajouter des arrêts intermédiaires entre deux villes
+- Développement d'un écran complet de gestion des arrêts avec filtrage avancé
+- Correction des problèmes de contrainte unique dans la base de données pour les arrêts 
