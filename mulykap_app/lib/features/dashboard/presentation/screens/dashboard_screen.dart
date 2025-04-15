@@ -33,19 +33,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = _isDarkMode 
-      ? ThemeData.dark().copyWith(
-          primaryColor: const Color(0xFF3D5AF1),
-          scaffoldBackgroundColor: const Color(0xFF121212),
-        )
-      : ThemeData.light().copyWith(
-          primaryColor: const Color(0xFF3D5AF1),
-          scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-        );
-    
-    // Récupérer l'état d'authentification actuel
     final authState = context.watch<AuthBloc>().state;
     final currentUser = authState.user;
+    
+    if (currentUser == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    final theme = _isDarkMode ? ThemeData.dark().copyWith(
+      colorScheme: ColorScheme.dark(
+        primary: const Color(0xFF3D5AF1),
+        secondary: const Color(0xFFFF9800),
+        surface: Colors.grey.shade900,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF3D5AF1),
+        ),
+      ),
+    ) : ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF3D5AF1),
+        secondary: const Color(0xFFFF9800),
+      ),
+      useMaterial3: true,
+    );
     
     return Theme(
       data: theme,

@@ -35,6 +35,8 @@ class _AgencyFormScreenState extends State<AgencyFormScreen> {
   final _cityNameController = TextEditingController();
   final _zipCodeController = TextEditingController();
   final _countryController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
 
   @override
   void initState() {
@@ -51,6 +53,8 @@ class _AgencyFormScreenState extends State<AgencyFormScreen> {
     _cityNameController.text = _address['city'] ?? '';
     _zipCodeController.text = _address['zip_code'] ?? '';
     _countryController.text = _address['country'] ?? 'RDC';
+    _phoneController.text = _phone;
+    _emailController.text = _email ?? '';
 
     // Charger les villes
     if (context.read<CityBloc>().state.cities.isEmpty) {
@@ -64,6 +68,8 @@ class _AgencyFormScreenState extends State<AgencyFormScreen> {
     _cityNameController.dispose();
     _zipCodeController.dispose();
     _countryController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -78,6 +84,9 @@ class _AgencyFormScreenState extends State<AgencyFormScreen> {
         'zip_code': _zipCodeController.text,
         'country': _countryController.text,
       };
+      
+      _phone = _phoneController.text;
+      _email = _emailController.text.isEmpty ? null : _emailController.text;
 
       setState(() {
         _isSubmitting = true;
@@ -325,46 +334,41 @@ class _AgencyFormScreenState extends State<AgencyFormScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Téléphone
+              // Champ Téléphone
               TextFormField(
-                initialValue: _phone,
-                decoration: const InputDecoration(
+                controller: _phoneController,
+                decoration: InputDecoration(
                   labelText: 'Téléphone',
                   border: OutlineInputBorder(),
-                  hintText: 'Ex: +243999999999',
+                  prefixIcon: Icon(Icons.phone),
                 ),
+                keyboardType: TextInputType.phone,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer le numéro de téléphone';
+                    return 'Veuillez saisir un numéro de téléphone';
                   }
                   return null;
-                },
-                onSaved: (value) {
-                  _phone = value!;
                 },
               ),
               const SizedBox(height: 16),
 
-              // Email
+              // Champ Email
               TextFormField(
-                initialValue: _email ?? '',
-                decoration: const InputDecoration(
+                controller: _emailController,
+                decoration: InputDecoration(
                   labelText: 'Email',
                   border: OutlineInputBorder(),
-                  hintText: 'Ex: contact@agence.com',
+                  prefixIcon: Icon(Icons.email),
                 ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value != null && value.isNotEmpty) {
-                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                    if (!emailRegex.hasMatch(value)) {
-                      return 'Veuillez entrer un email valide';
-                    }
+                  if (value == null || value.isEmpty) {
+                    return 'Veuillez saisir une adresse email';
+                  }
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    return 'Veuillez saisir une adresse email valide';
                   }
                   return null;
-                },
-                onSaved: (value) {
-                  _email = value!.isEmpty ? null : value;
                 },
               ),
               const SizedBox(height: 24),

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../screens/overview_screen.dart';
 import 'responsive_layout.dart';
 import 'package:mulykap_app/features/buses/presentation/screens/bus_list_screen.dart';
 import 'package:mulykap_app/features/buses/presentation/screens/agency_list_screen.dart';
 import 'package:mulykap_app/features/buses/presentation/screens/city_list_screen.dart';
+import 'package:mulykap_app/features/routes/data/repositories/route_repository.dart';
+import 'package:mulykap_app/features/routes/data/repositories/route_stop_repository.dart';
+import 'package:mulykap_app/features/routes/presentation/bloc/route_bloc.dart';
+import 'package:mulykap_app/features/routes/presentation/screens/routes_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DashboardContent extends StatelessWidget {
   final int selectedIndex;
@@ -24,7 +30,34 @@ class DashboardContent extends StatelessWidget {
       case 1:
         return const BusListScreen();
       case 2:
-        return _buildPlaceholder('Itinéraires');
+        // Créer directement les instances des dépendances
+        final supabaseClient = Supabase.instance.client;
+        final routeRepository = RouteRepository(supabaseClient: supabaseClient);
+        final routeStopRepository = RouteStopRepository(supabaseClient: supabaseClient);
+        
+        // Utilisons un BlocProvider frais à chaque fois
+        return MultiRepositoryProvider(
+          providers: [
+            RepositoryProvider<RouteRepository>.value(
+              value: routeRepository,
+            ),
+            RepositoryProvider<RouteStopRepository>.value(
+              value: routeStopRepository,
+            ),
+          ],
+          child: BlocProvider<RouteBloc>(
+            create: (context) {
+              debugPrint('Création d\'un nouveau RouteBloc avec repository');
+              return RouteBloc(routeRepository: routeRepository);
+            },
+            child: Builder(
+              builder: (context) {
+                debugPrint('Construction de RoutesScreen');
+                return const RoutesScreen();
+              },
+            ),
+          ),
+        );
       case 3:
         return _buildPlaceholder('Arrêts');
       case 4:
