@@ -11,6 +11,8 @@ import 'package:mulykap_app/features/routes/presentation/bloc/route_bloc.dart';
 import 'package:mulykap_app/features/routes/presentation/screens/routes_screen.dart';
 import 'package:mulykap_app/features/routes/presentation/screens/stops_screen.dart';
 import 'package:mulykap_app/features/buses/data/repositories/city_repository.dart';
+import 'package:mulykap_app/features/drivers/presentation/screens/driver_list_screen.dart';
+import 'package:mulykap_app/features/recurring_trips/recurring_trips.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DashboardContent extends StatelessWidget {
@@ -82,11 +84,21 @@ class DashboardContent extends StatelessWidget {
           child: const StopsScreen(),
         );
       case 4:
-        return _buildPlaceholder('Voyages Récurrents');
+        // Créer les dépendances pour l'écran des voyages récurrents
+        final supabaseClient = Supabase.instance.client;
+        final recurringTripRepository = RecurringTripRepository(supabaseClient: supabaseClient);
+        
+        return BlocProvider(
+          create: (context) => RecurringTripBloc(
+            repository: recurringTripRepository,
+          ),
+          child: const RecurringTripListScreen(),
+        );
       case 5:
         return _buildPlaceholder('Maintenance');
       case 6:
-        return _buildPlaceholder('Chauffeurs');
+        // Écran de gestion des chauffeurs
+        return const DriverListScreen();
       case 7:
         return const AgencyListScreen();
       case 8:

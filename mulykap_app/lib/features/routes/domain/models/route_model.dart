@@ -8,6 +8,8 @@ class RouteModel extends Equatable {
   final Duration estimatedDuration;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? departureCityName;
+  final String? arrivalCityName;
 
   const RouteModel({
     required this.id,
@@ -17,6 +19,8 @@ class RouteModel extends Equatable {
     required this.estimatedDuration,
     this.createdAt,
     this.updatedAt,
+    this.departureCityName,
+    this.arrivalCityName,
   });
 
   factory RouteModel.fromMap(Map<String, dynamic> map) {
@@ -32,6 +36,8 @@ class RouteModel extends Equatable {
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
           : null,
+      departureCityName: map['departure_city_name'] as String?,
+      arrivalCityName: map['arrival_city_name'] as String?,
     );
   }
 
@@ -78,6 +84,8 @@ class RouteModel extends Equatable {
     Duration? estimatedDuration,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? departureCityName,
+    String? arrivalCityName,
   }) {
     return RouteModel(
       id: id ?? this.id,
@@ -87,6 +95,8 @@ class RouteModel extends Equatable {
       estimatedDuration: estimatedDuration ?? this.estimatedDuration,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      departureCityName: departureCityName ?? this.departureCityName,
+      arrivalCityName: arrivalCityName ?? this.arrivalCityName,
     );
   }
 
@@ -99,5 +109,9 @@ class RouteModel extends Equatable {
         estimatedDuration,
         createdAt,
         updatedAt,
+        departureCityName,
+        arrivalCityName,
       ];
+
+  String get routeDisplayName => '${departureCityName ?? departureCityId} - ${arrivalCityName ?? arrivalCityId}';
 } 

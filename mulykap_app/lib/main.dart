@@ -29,6 +29,9 @@ import 'package:mulykap_app/features/buses/presentation/screens/agency_detail_sc
 import 'package:mulykap_app/features/buses/presentation/screens/agency_form_screen.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:mulykap_app/theme/app_theme.dart';
+import 'package:mulykap_app/features/drivers/domain/repositories/driver_repository.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +44,9 @@ void main() async {
     url: SupabaseConstants.supabaseUrl,
     anonKey: SupabaseConstants.supabaseAnonKey,
   );
+  
+  // Initialiser les données de localisation
+  await initializeDateFormatting('fr_FR');
   
   runApp(const MyApp());
 }
@@ -65,6 +71,9 @@ class MyApp extends StatelessWidget {
         ),
         RepositoryProvider<CityRepository>(
           create: (context) => CityRepository(supabaseClient: supabaseClient),
+        ),
+        RepositoryProvider<DriverRepository>(
+          create: (context) => DriverRepository(),
         ),
       ],
       child: MultiBlocProvider(
@@ -101,6 +110,17 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeMode.system,
+          // Support de la localisation
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('fr', 'FR'), // Français (prioritaire)
+            Locale('en', 'US'), // Anglais
+          ],
+          locale: const Locale('fr', 'FR'), // Définir la localisation par défaut
           initialRoute: '/',
           routes: {
             '/': (context) => const AuthWrapper(),

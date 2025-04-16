@@ -16,10 +16,26 @@ class RouteRepository {
       
       final response = await _supabaseClient
           .from('routes')
-          .select()
-          .order('created_at', ascending: false);
+          .select('''
+            *,
+            departure_city:cities!departure_city_id(name),
+            arrival_city:cities!arrival_city_id(name)
+          ''');
 
-      final routesList = response.map<RouteModel>((route) => RouteModel.fromMap(route)).toList();
+      if (response == null) {
+        throw Exception('Aucune donnée reçue');
+      }
+
+      final routesList = (response as List).map((route) {
+        final departureCityName = (route['departure_city'] as Map)['name'] as String?;
+        final arrivalCityName = (route['arrival_city'] as Map)['name'] as String?;
+        
+        return RouteModel.fromMap({
+          ...route,
+          'departure_city_name': departureCityName,
+          'arrival_city_name': arrivalCityName,
+        });
+      }).toList();
       
       debugPrint('Itinéraires récupérés avec succès: ${routesList.length}');
       
@@ -35,7 +51,11 @@ class RouteRepository {
     try {
       final response = await _supabaseClient
           .from('routes')
-          .select()
+          .select('''
+            *,
+            departure_city:cities!departure_city_id(name),
+            arrival_city:cities!arrival_city_id(name)
+          ''')
           .eq('id', id)
           .single();
 
@@ -53,7 +73,11 @@ class RouteRepository {
     try {
       var query = _supabaseClient
           .from('routes')
-          .select();
+          .select('''
+            *,
+            departure_city:cities!departure_city_id(name),
+            arrival_city:cities!arrival_city_id(name)
+          ''');
 
       if (departureCityId != null) {
         query = query.eq('departure_city_id', departureCityId);
@@ -63,8 +87,17 @@ class RouteRepository {
         query = query.eq('arrival_city_id', arrivalCityId);
       }
 
-      final response = await query.order('created_at', ascending: false);
-      return response.map<RouteModel>((route) => RouteModel.fromMap(route)).toList();
+      final response = await query.order('created_at');
+      return (response as List).map<RouteModel>((route) {
+        final departureCityName = (route['departure_city'] as Map)['name'] as String?;
+        final arrivalCityName = (route['arrival_city'] as Map)['name'] as String?;
+        
+        return RouteModel.fromMap({
+          ...route,
+          'departure_city_name': departureCityName,
+          'arrival_city_name': arrivalCityName,
+        });
+      }).toList();
     } catch (e) {
       throw Exception('Erreur lors de la recherche des itinéraires: $e');
     }

@@ -1,0 +1,191 @@
+{
+  "@@last_modified": "2025-04-15T16:38:00.187054",
+  "drivers": "Chauffeurs",
+  "@drivers": {
+    "description": "Title for drivers list screen",
+    "type": "text",
+    "placeholders": {}
+  },
+  "driver": "Chauffeur",
+  "@driver": {
+    "description": "Driver label",
+    "type": "text",
+    "placeholders": {}
+  },
+  "addDriver": "Ajouter un chauffeur",
+  "@addDriver": {
+    "description": "Button to add a new driver",
+    "type": "text",
+    "placeholders": {}
+  },
+  "editDriver": "Modifier un chauffeur",
+  "@editDriver": {
+    "description": "Title for edit driver screen",
+    "type": "text",
+    "placeholders": {}
+  },
+  "noDriversYet": "Aucun chauffeur enregistré",
+  "@noDriversYet": {
+    "description": "Message shown when no drivers are available",
+    "type": "text",
+    "placeholders": {}
+  },
+  "addFirstDriver": "Commencez par ajouter un chauffeur",
+  "@addFirstDriver": {
+    "description": "Suggestion to add first driver",
+    "type": "text",
+    "placeholders": {}
+  },
+  "errorLoadingDrivers": "Erreur lors du chargement des chauffeurs",
+  "@errorLoadingDrivers": {
+    "description": "Error message when drivers loading fails",
+    "type": "text",
+    "placeholders": {}
+  },
+  "driverDeletedSuccessfully": "Chauffeur supprimé avec succès",
+  "@driverDeletedSuccessfully": {
+    "description": "Success message after driver deletion",
+    "type": "text",
+    "placeholders": {}
+  },
+  "errorDeletingDriver": "Erreur lors de la suppression du chauffeur",
+  "@errorDeletingDriver": {
+    "description": "Error message when driver deletion fails",
+    "type": "text",
+    "placeholders": {}
+  },
+  "deleteDriverTitle": "Supprimer le chauffeur",
+  "@deleteDriverTitle": {
+    "description": "Title for driver deletion confirmation dialog",
+    "type": "text",
+    "placeholders": {}
+  },
+  "deleteDriverConfirmation": "Êtes-vous sûr de vouloir supprimer le chauffeur {name} ?",
+  "@deleteDriverConfirmation": {
+    "description": "Confirmation message for driver deletion",
+    "type": "text",
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "licenseNumber": "Numéro de permis",
+  "@licenseNumber": {
+    "description": "Label for driver license number",
+    "type": "text",
+    "placeholders": {}
+  },
+  "licenseNumberHint": "ex: ABC123456",
+  "@licenseNumberHint": {
+    "description": "Hint for license number field",
+    "type": "text",
+    "placeholders": {}
+  },
+  "licenseNumberRequired": "Le numéro de permis est obligatoire",
+  "@licenseNumberRequired": {
+    "description": "Validation message when license number is empty",
+    "type": "text",
+    "placeholders": {}
+  },
+  "licenseExpiryDate": "Date d'expiration du permis",
+  "@licenseExpiryDate": {
+    "description": "Label for license expiry date",
+    "type": "text",
+    "placeholders": {}
+  },
+  "firstName": "Prénom",
+  "@firstName": {
+    "description": "Label for first name field",
+    "type": "text",
+    "placeholders": {}
+  },
+  "firstNameHint": "Prénom du chauffeur",
+  "@firstNameHint": {
+    "description": "Hint for first name field",
+    "type": "text",
+    "placeholders": {}
+  },
+  "firstNameRequired": "Le prénom est obligatoire",
+  "@firstNameRequired": {
+    "description": "Validation message when first name is empty",
+    "type": "text",
+    "placeholders": {}
+  },
+  "lastName": "Nom",
+  "@lastName": {
+    "description": "Label for last name field",
+    "type": "text",
+    "placeholders": {}
+  },
+  "lastNameHint": "Nom du chauffeur",
+  "@lastNameHint": {
+    "description": "Hint for last name field",
+    "type": "text",
+    "placeholders": {}
+  },
+  "lastNameRequired": "Le nom est obligatoire",
+  "@lastNameRequired": {
+    "description": "Validation message when last name is empty",
+    "type": "text",
+    "placeholders": {}
+  },
+  "phoneNumber": "Téléphone",
+  "@phoneNumber": {
+    "description": "Label for phone number field",
+    "type": "text",
+    "placeholders": {}
+  },
+  "phoneNumberHint": "ex: +243 123 456 789",
+  "@phoneNumberHint": {
+    "description": "Hint for phone number field",
+    "type": "text",
+    "placeholders": {}
+  },
+  "phoneNumberRequired": "Le numéro de téléphone est obligatoire",
+  "@phoneNumberRequired": {
+    "description": "Validation message when phone number is empty",
+    "type": "text",
+    "placeholders": {}
+  },
+  "personalInformation": "Informations personnelles",
+  "@personalInformation": {
+    "description": "Section title for personal information",
+    "type": "text",
+    "placeholders": {}
+  },
+  "agency": "Agence",
+  "@agency": {
+    "description": "Label for agency",
+    "type": "text",
+    "placeholders": {}
+  },
+  "selectAgency": "Sélectionnez une agence",
+  "@selectAgency": {
+    "description": "Prompt to select an agency",
+    "type": "text",
+    "placeholders": {}
+  },
+  "noAgency": "Aucune agence",
+  "@noAgency": {
+    "description": "Option for no agency",
+    "type": "text",
+    "placeholders": {}
+  },
+  "isActive": "Chauffeur actif",
+  "@isActive": {
+    "description": "Label for active status",
+    "type": "text",
+    "placeholders": {}
+  },
+  "expired": "Expiré",
+  "@expired": {
+    "description": "Label for expired license",
+    "type": "text",
+    "placeholders": {}
+  },
+  "expiringsSoon": "Expire bientôt",
+  "@expiringsSoon": {
+    "description": "Label for license expiring soon",
+    "type": "text",
+    "placeholders": {}
+  }
+}
