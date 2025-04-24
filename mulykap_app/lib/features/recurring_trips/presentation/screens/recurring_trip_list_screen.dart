@@ -14,6 +14,7 @@ import 'package:mulykap_app/features/routes/data/repositories/route_repository.d
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:mulykap_app/features/recurring_trips/presentation/widgets/recurring_trip_edit_dialog.dart';
 
 class RecurringTripListScreen extends StatefulWidget {
   const RecurringTripListScreen({Key? key}) : super(key: key);
@@ -101,13 +102,38 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
               tooltip: _showCalendarView ? 'Afficher la liste' : 'Afficher le calendrier',
             ),
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshData,
+            tooltip: 'Rafraîchir les données',
+          ),
+          IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterBottomSheet,
             tooltip: 'Filtrer',
           ),
         ],
       ),
-      body: BlocBuilder<RecurringTripBloc, RecurringTripState>(
+      body: BlocConsumer<RecurringTripBloc, RecurringTripState>(
+        listener: (context, state) {
+          // Ne pas traiter les états de chargement
+          if (state.isLoading) return;
+          
+          // En cas d'erreur, afficher un message
+          if (state.error != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur: ${state.error}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+          
+          // Si l'opération est réussie, mettre à jour le calendrier
+          setState(() {
+            _buildEventsByDay(state.trips);
+          });
+        },
         builder: (context, state) {
           if (state.isLoading) {
             return const LoadingSpinner();
@@ -122,8 +148,8 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
 
           final trips = state.filteredTrips;
           
-          // Construire les événements par jour
-          _buildEventsByDay(trips);
+          // Construire les événements par jour (maintenant fait dans le listener ci-dessus)
+          // _buildEventsByDay(trips);
 
           if (trips.isEmpty) {
             return Center(
@@ -203,29 +229,70 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
     
     // Pour chaque voyage récurrent
     for (var trip in trips) {
+      // Ignorer les voyages inactifs (mais les garder dans la liste)
+      if (!trip.isActive) continue;
+      
+      // Dates de validité
+      final DateTime startDate = trip.validFrom;
+      final DateTime endDate = trip.validUntil ?? DateTime(2100); // Date très lointaine si pas définie
+      
       // Pour chaque jour de la semaine où le voyage est programmé
       for (var weekday in trip.weekdays) {
-        // Trouver la prochaine occurrence de ce jour de la semaine
-        DateTime date = _getNextWeekday(weekday);
+        // Trouver la première occurrence après la date de début
+        DateTime date = _findFirstOccurrenceAfterDate(weekday, startDate);
         
-        // Ajouter le voyage à ce jour
-        if (_eventsByDay[date] == null) {
-          _eventsByDay[date] = [];
-        }
-        _eventsByDay[date]!.add(trip);
-        
-        // Ajouter également pour les 8 semaines suivantes
-        for (int i = 1; i <= 8; i++) {
-          DateTime futureDate = date.add(Duration(days: 7 * i));
-          if (futureDate.isBefore(trip.validUntil ?? DateTime(2100))) { // Si avant la date de fin
-            if (_eventsByDay[futureDate] == null) {
-              _eventsByDay[futureDate] = [];
-            }
-            _eventsByDay[futureDate]!.add(trip);
+        // Générer toutes les occurrences jusqu'à la date de fin de validité
+        while (!date.isAfter(endDate)) {
+          // Normaliser la date pour éviter les problèmes d'heure
+          final normalizedDate = DateTime(date.year, date.month, date.day);
+          
+          // Ajouter l'événement à la date
+          if (_eventsByDay[normalizedDate] == null) {
+            _eventsByDay[normalizedDate] = [];
           }
+          
+          // Éviter les doublons
+          if (!_eventsByDay[normalizedDate]!.any((t) => t.id == trip.id)) {
+            _eventsByDay[normalizedDate]!.add(trip);
+          }
+          
+          // Passer à la semaine suivante
+          date = date.add(const Duration(days: 7));
         }
       }
     }
+  }
+
+  // Trouve la première occurrence d'un jour de semaine spécifique à partir d'une date
+  DateTime _findFirstOccurrenceAfterDate(int weekday, DateTime startDate) {
+    // Créer une date sans composantes d'heure pour éviter les problèmes de comparaison
+    DateTime date = DateTime(startDate.year, startDate.month, startDate.day);
+    
+    // Récupérer le jour de la semaine de la date de début (1 = lundi, 7 = dimanche)
+    int dayOfWeek = date.weekday;
+    
+    // Calculer le nombre de jours à ajouter pour atteindre le jour de la semaine cible
+    int daysToAdd = 0;
+    
+    if (weekday == dayOfWeek) {
+      // Si c'est le même jour, pas besoin d'ajouter des jours
+      daysToAdd = 0;
+    } else if (weekday > dayOfWeek) {
+      // Si le jour cible est plus tard dans la semaine
+      daysToAdd = weekday - dayOfWeek;
+    } else {
+      // Si le jour cible est plus tôt dans la semaine, passer à la semaine suivante
+      daysToAdd = 7 - dayOfWeek + weekday;
+    }
+    
+    // Retourner la date avec les jours ajoutés
+    return date.add(Duration(days: daysToAdd));
+  }
+
+  // Trouve la prochaine occurrence d'un jour de la semaine à partir d'aujourd'hui
+  DateTime _getNextWeekday(int weekday) {
+    // Utiliser la date actuelle comme référence
+    return _findFirstOccurrenceAfterDate(weekday, DateTime.now());
   }
 
   // Widget pour la vue liste
@@ -291,7 +358,7 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
             padding: const EdgeInsets.all(8.0),
             child: TableCalendar(
               firstDay: DateTime.now().subtract(const Duration(days: 365)),
-              lastDay: DateTime.now().add(const Duration(days: 365 * 2)),
+              lastDay: DateTime.now().add(const Duration(days: 365 * 3)),
               focusedDay: _focusedDay,
               calendarFormat: _calendarFormat,
               startingDayOfWeek: StartingDayOfWeek.monday,
@@ -351,7 +418,9 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
                 });
               },
               onPageChanged: (focusedDay) {
-                _focusedDay = focusedDay;
+                setState(() {
+                  _focusedDay = focusedDay;
+                });
               },
               calendarStyle: CalendarStyle(
                 todayDecoration: BoxDecoration(
@@ -378,32 +447,26 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
 
   // Récupère les événements pour un jour donné
   List<RecurringTripModel> _getEventsForDay(DateTime day) {
+    // Normaliser la date d'entrée sans les composantes d'heure
+    final normalizedDay = DateTime(day.year, day.month, day.day);
+    
     // Vérifier si ce jour a des événements
-    for (DateTime eventDay in _eventsByDay.keys) {
-      if (isSameDay(eventDay, day)) {
+    if (_eventsByDay.containsKey(normalizedDay)) {
+      return _eventsByDay[normalizedDay] ?? [];
+    }
+    
+    // Parcourir les clés pour trouver une correspondance
+    for (final DateTime eventDay in _eventsByDay.keys) {
+      if (eventDay.year == normalizedDay.year && 
+          eventDay.month == normalizedDay.month && 
+          eventDay.day == normalizedDay.day) {
         return _eventsByDay[eventDay] ?? [];
       }
     }
+    
     return [];
   }
 
-  // Trouve la prochaine occurrence d'un jour de la semaine spécifique
-  DateTime _getNextWeekday(int weekday) {
-    DateTime date = DateTime.now();
-    
-    // Récupérer l'index du jour de la semaine (1 = lundi, 7 = dimanche)
-    int currentWeekday = date.weekday;
-    
-    // Calculer le nombre de jours à ajouter
-    int daysToAdd = weekday - currentWeekday;
-    if (daysToAdd <= 0) {
-      daysToAdd += 7; // Si c'est aujourd'hui ou avant, on va à la semaine prochaine
-    }
-    
-    // Ajouter les jours nécessaires
-    return date.add(Duration(days: daysToAdd));
-  }
-  
   // Widget pour afficher la liste des voyages pour un jour sélectionné
   Widget _buildEventsList(BuildContext context) {
     if (!_isLocaleInitialized) {
@@ -512,12 +575,43 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
     );
   }
 
+  // Méthode pour appliquer les filtres et rafraîchir les données
+  void _applyFilter(RecurrenceType? type) {
+    // Afficher un message indiquant le filtrage
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(type != null 
+            ? 'Filtrage par ${type.displayName}...' 
+            : 'Réinitialisation des filtres...'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+    
+    // Mettre à jour le type sélectionné
+    setState(() {
+      _selectedType = type;
+    });
+    
+    // Appliquer le filtre au BLoC
+    if (type != null) {
+      context.read<RecurringTripBloc>().add(RecurringTripFilterByType(type));
+    } else {
+      context.read<RecurringTripBloc>().add(RecurringTripResetFilters());
+    }
+    
+    // Forcer le rafraîchissement des données
+    Future.delayed(const Duration(milliseconds: 300), _refreshData);
+  }
+
   void _showFilterBottomSheet() {
     showModalBottomSheet(
       context: context,
       builder: (context) {
+        // Utiliser une variable locale pour le type sélectionné dans cette boîte de dialogue
+        RecurrenceType? localSelectedType = _selectedType;
+        
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (builderContext, setSheetState) {
             return Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -535,13 +629,15 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
                   Wrap(
                     spacing: 8,
                     children: RecurrenceType.values.map((type) {
-                      final isSelected = _selectedType == type;
+                      final isSelected = localSelectedType == type;
                       return FilterChip(
                         label: Text(type.displayName),
                         selected: isSelected,
+                        selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                        checkmarkColor: Theme.of(context).primaryColor,
                         onSelected: (selected) {
-                          setState(() {
-                            _selectedType = selected ? type : null;
+                          setSheetState(() {
+                            localSelectedType = selected ? type : null;
                           });
                         },
                       );
@@ -553,8 +649,8 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
                     children: [
                       TextButton(
                         onPressed: () {
-                          setState(() {
-                            _selectedType = null;
+                          setSheetState(() {
+                            localSelectedType = null;
                           });
                         },
                         child: const Text('Réinitialiser'),
@@ -563,13 +659,7 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
                       ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          if (_selectedType != null) {
-                            context.read<RecurringTripBloc>().add(
-                                  RecurringTripFilterByType(_selectedType!),
-                                );
-                          } else {
-                            context.read<RecurringTripBloc>().add(RecurringTripResetFilters());
-                          }
+                          _applyFilter(localSelectedType);
                         },
                         child: const Text('Appliquer'),
                       ),
@@ -594,31 +684,45 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
     );
   }
 
-  void _editTrip(RecurringTripModel trip) {
-    // TODO: Implémenter la modification d'un voyage récurrent
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Modifier le voyage récurrent: ${trip.id}'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+  void _editTrip(RecurringTripModel trip) async {
+    try {
+      // Ouvrir la boîte de dialogue d'édition et récupérer si un voyage a été mis à jour
+      bool tripUpdated = await RecurringTripEditDialog.show(context, trip);
+      
+      // Recharger explicitement les données si un voyage a été mis à jour
+      if (mounted && tripUpdated) {
+        _refreshData();
+      }
+    } catch (e) {
+      // Gérer les erreurs potentielles
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'édition: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _createNewTrip() async {
-    // Attendre que la boîte de dialogue se ferme
-    await RecurringTripCreateDialog.show(context);
+    // Attendre que la boîte de dialogue se ferme et récupérer l'information sur la création
+    bool tripCreated = await RecurringTripCreateDialog.show(context);
     
-    // Recharger explicitement la liste après la fermeture
-    if (mounted) {
-      // Vérification si le widget est toujours monté pour éviter les erreurs
-      context.read<RecurringTripBloc>().add(RecurringTripLoadAll());
+    // Recharger explicitement les données si un voyage a été créé
+    if (mounted && tripCreated) {
+      _refreshData();
     }
   }
 
   void _confirmDeleteTrip(RecurringTripModel trip) {
+    // Capturer le contexte qui a accès au bloc avant d'ouvrir le dialogue
+    final BuildContext outerContext = context;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Supprimer ce voyage récurrent?'),
         content: const Text(
           'Cette action est irréversible. Voulez-vous vraiment supprimer ce voyage récurrent?'
@@ -626,14 +730,31 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             },
             child: const Text('Annuler'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              context.read<RecurringTripBloc>().add(RecurringTripDelete(trip.id));
+              Navigator.pop(dialogContext);
+              
+              // Afficher un indicateur de chargement
+              ScaffoldMessenger.of(outerContext).showSnackBar(
+                const SnackBar(
+                  content: Text('Suppression en cours...'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+              
+              // Utiliser le contexte externe qui a accès au bloc
+              outerContext.read<RecurringTripBloc>().add(RecurringTripDelete(trip.id));
+              
+              // Attendre un instant pour permettre la suppression en base de données
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted) {
+                  _refreshData();
+                }
+              });
             },
             child: const Text('Supprimer'),
           ),
@@ -643,6 +764,9 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
   }
 
   void _confirmToggleStatus(RecurringTripModel trip) {
+    // Capturer le contexte qui a accès au bloc avant d'ouvrir le dialogue
+    final BuildContext outerContext = context;
+    
     final newStatus = !trip.isActive;
     final message = newStatus
         ? 'Voulez-vous activer ce voyage récurrent?'
@@ -650,30 +774,64 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(newStatus ? 'Activer le voyage?' : 'Désactiver le voyage?'),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             },
             child: const Text('Annuler'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              context.read<RecurringTripBloc>().add(
-                    RecurringTripToggleStatus(
-                      id: trip.id,
-                      isActive: newStatus,
-                    ),
-                  );
+              Navigator.pop(dialogContext);
+              
+              // Afficher un indicateur de statut
+              ScaffoldMessenger.of(outerContext).showSnackBar(
+                SnackBar(
+                  content: Text(newStatus ? 'Activation en cours...' : 'Désactivation en cours...'),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+              
+              // Utiliser le contexte externe qui a accès au bloc
+              outerContext.read<RecurringTripBloc>().add(
+                RecurringTripToggleStatus(
+                  id: trip.id,
+                  isActive: newStatus,
+                ),
+              );
+              
+              // Attendre un instant pour permettre la mise à jour en base de données
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted) {
+                  _refreshData();
+                }
+              });
             },
             child: Text(newStatus ? 'Activer' : 'Désactiver'),
           ),
         ],
       ),
     );
+  }
+
+  // Méthode pour rafraîchir explicitement les données
+  void _refreshData() {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Rafraîchissement en cours...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+    
+    // S'assurer que nous sommes toujours montés et que le contexte est valide
+    if (mounted) {
+      context.read<RecurringTripBloc>().add(RecurringTripLoadAll());
+    }
   }
 } 

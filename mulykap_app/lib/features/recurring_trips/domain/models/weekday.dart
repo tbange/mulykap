@@ -1,3 +1,4 @@
+/// Représente les jours de la semaine
 enum Weekday {
   monday,
   tuesday,
@@ -24,5 +25,13 @@ enum Weekday {
       case Weekday.sunday:
         return 'Dimanche';
     }
+  }
+
+  static Weekday fromInt(int value) {
+    return Weekday.values[value - 1]; // 1=monday, 7=sunday
+  }
+  
+  int toInt() {
+    return index + 1; // 1=monday, 7=sunday
   }
 } 

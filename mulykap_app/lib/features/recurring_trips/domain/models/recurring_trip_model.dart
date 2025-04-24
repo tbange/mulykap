@@ -20,7 +20,7 @@ enum RecurrenceType {
 class RecurringTripModel extends Equatable {
   final String id;
   final String routeId;
-  final String busId;
+  final String? busId;
   final List<int> weekdays;  // Jours de la semaine (1-7)
   final String departureTime;  // Format HH:mm
   final String arrivalTime;    // Format HH:mm
@@ -38,7 +38,7 @@ class RecurringTripModel extends Equatable {
   const RecurringTripModel({
     required this.id,
     required this.routeId,
-    required this.busId,
+    this.busId,
     required this.weekdays,
     required this.departureTime,
     required this.arrivalTime,
@@ -99,28 +99,37 @@ class RecurringTripModel extends Equatable {
     final List<String> weekdayNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
     final List<String> weekdayValues = weekdays.map((day) => weekdayNames[day - 1]).toList();
 
-    return {
+    final map = <String, dynamic>{
       'id': id,
       'route_id': routeId,
-      'bus_id': busId,
       'weekdays': weekdayValues,
       'departure_time': departureTime,
       'arrival_time': arrivalTime,
       'base_price': basePrice,
       'is_active': isActive,
       'valid_from': '${validFrom.year}-${validFrom.month.toString().padLeft(2, '0')}-${validFrom.day.toString().padLeft(2, '0')}',
-      'valid_until': validUntil != null 
-          ? '${validUntil!.year}-${validUntil!.month.toString().padLeft(2, '0')}-${validUntil!.day.toString().padLeft(2, '0')}'
-          : null,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
+    
+    // Ajouter busId seulement s'il n'est pas null
+    if (busId != null) {
+      map['bus_id'] = busId;
+    }
+    
+    // Ajouter validUntil seulement s'il n'est pas null
+    if (validUntil != null) {
+      map['valid_until'] = '${validUntil!.year}-${validUntil!.month.toString().padLeft(2, '0')}-${validUntil!.day.toString().padLeft(2, '0')}';
+    }
+    
+    return map;
   }
 
   RecurringTripModel copyWith({
     String? id,
     String? routeId,
     String? busId,
+    bool clearBus = false,
     List<int>? weekdays,
     String? departureTime,
     String? arrivalTime,
@@ -128,6 +137,7 @@ class RecurringTripModel extends Equatable {
     bool? isActive,
     DateTime? validFrom,
     DateTime? validUntil,
+    bool clearValidUntil = false,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? routeName,
@@ -136,14 +146,14 @@ class RecurringTripModel extends Equatable {
     return RecurringTripModel(
       id: id ?? this.id,
       routeId: routeId ?? this.routeId,
-      busId: busId ?? this.busId,
+      busId: clearBus ? null : busId ?? this.busId,
       weekdays: weekdays ?? this.weekdays,
       departureTime: departureTime ?? this.departureTime,
       arrivalTime: arrivalTime ?? this.arrivalTime,
       basePrice: basePrice ?? this.basePrice,
       isActive: isActive ?? this.isActive,
       validFrom: validFrom ?? this.validFrom,
-      validUntil: validUntil ?? this.validUntil,
+      validUntil: clearValidUntil ? null : validUntil ?? this.validUntil,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       routeName: routeName ?? this.routeName,

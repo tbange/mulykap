@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mulykap_app/features/recurring_trips/data/repositories/recurring_trip_repository.dart';
+import 'package:mulykap_app/features/recurring_trips/domain/models/recurring_trip_model.dart';
 import 'package:mulykap_app/features/recurring_trips/presentation/bloc/recurring_trip_bloc.dart';
 import 'package:mulykap_app/features/recurring_trips/presentation/bloc/recurring_trip_event.dart';
 import 'package:mulykap_app/features/recurring_trips/presentation/bloc/recurring_trip_state.dart';
-import 'package:mulykap_app/features/recurring_trips/presentation/screens/recurring_trip_create_screen.dart';
+import 'package:mulykap_app/features/recurring_trips/presentation/screens/recurring_trip_edit_screen.dart';
 import 'package:mulykap_app/features/buses/data/repositories/bus_repository.dart';
 import 'package:mulykap_app/features/routes/data/repositories/route_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class RecurringTripCreateDialog extends StatelessWidget {
-  const RecurringTripCreateDialog({Key? key}) : super(key: key);
+class RecurringTripEditDialog extends StatelessWidget {
+  const RecurringTripEditDialog({Key? key}) : super(key: key);
 
-  /// Affiche la boîte de dialogue pour créer un voyage récurrent
-  static Future<bool> show(BuildContext context) async {
-    bool tripCreated = false;
+  /// Affiche la boîte de dialogue pour modifier un voyage récurrent
+  static Future<bool> show(BuildContext context, RecurringTripModel trip) async {
+    bool tripUpdated = false;
     // Obtenir l'instance Supabase
     final supabaseClient = Supabase.instance.client;
     
@@ -49,7 +50,7 @@ class RecurringTripCreateDialog extends StatelessWidget {
                     ),
                   ),
                 ],
-                child: BlocProvider<RecurringTripBloc>(
+                child: BlocProvider(
                   create: (context) => RecurringTripBloc(
                     repository: context.read<RecurringTripRepository>(),
                   ),
@@ -59,11 +60,11 @@ class RecurringTripCreateDialog extends StatelessWidget {
                       return previous.isLoading && !current.isLoading && current.error == null;
                     },
                     listener: (context, state) {
-                      // Marquer le voyage comme créé et fermer le dialogue
-                      tripCreated = true;
+                      // Marquer le voyage comme mis à jour et fermer le dialogue
+                      tripUpdated = true;
                       Navigator.of(dialogContext).pop();
                     },
-                    child: const RecurringTripCreateScreen(),
+                    child: RecurringTripEditScreen(trip: trip),
                   ),
                 ),
               ),
@@ -73,8 +74,8 @@ class RecurringTripCreateDialog extends StatelessWidget {
       },
     );
     
-    // Retourner un booléen indiquant si un voyage a été créé
-    return tripCreated;
+    // Retourner un booléen indiquant si un voyage a été mis à jour
+    return tripUpdated;
   }
 
   @override

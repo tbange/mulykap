@@ -10,24 +10,30 @@ import 'package:mulykap_app/features/buses/domain/models/bus_model.dart';
 import 'package:mulykap_app/features/routes/data/repositories/route_repository.dart';
 import 'package:mulykap_app/features/buses/data/repositories/bus_repository.dart';
 
-class RecurringTripCreateScreen extends StatefulWidget {
-  const RecurringTripCreateScreen({Key? key}) : super(key: key);
+class RecurringTripEditScreen extends StatefulWidget {
+  final RecurringTripModel trip;
+
+  const RecurringTripEditScreen({
+    Key? key, 
+    required this.trip,
+  }) : super(key: key);
 
   @override
-  State<RecurringTripCreateScreen> createState() => _RecurringTripCreateScreenState();
+  State<RecurringTripEditScreen> createState() => _RecurringTripEditScreenState();
 }
 
-class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
+class _RecurringTripEditScreenState extends State<RecurringTripEditScreen> {
   final _formKey = GlobalKey<FormState>();
   
-  String? _selectedRouteId;
+  late String _selectedRouteId;
   String? _selectedBusId;
-  final List<Weekday> _selectedWeekdays = [];
-  TimeOfDay _departureTime = const TimeOfDay(hour: 8, minute: 0);
-  TimeOfDay _arrivalTime = const TimeOfDay(hour: 9, minute: 0);
-  double _basePrice = 0.0;
-  DateTime _validFrom = DateTime.now();
-  DateTime _validUntil = DateTime.now().add(const Duration(days: 365));
+  late List<int> _selectedWeekdays;
+  late TimeOfDay _departureTime;
+  late TimeOfDay _arrivalTime;
+  late double _basePrice;
+  late DateTime _validFrom;
+  late DateTime _validUntil;
+  late bool _isActive;
   
   List<RouteModel> _routes = [];
   List<BusModel> _buses = [];
@@ -37,7 +43,34 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialiser les valeurs à partir du voyage récurrent existant
+    _initializeValues();
     _loadData();
+  }
+
+  void _initializeValues() {
+    // Récupérer les valeurs du voyage existant
+    _selectedRouteId = widget.trip.routeId;
+    _selectedBusId = widget.trip.busId;
+    _selectedWeekdays = List.from(widget.trip.weekdays);
+    _isActive = widget.trip.isActive;
+    
+    // Convertir la chaîne d'heure au format HH:mm en TimeOfDay
+    final departureTimeParts = widget.trip.departureTime.split(':');
+    _departureTime = TimeOfDay(
+      hour: int.parse(departureTimeParts[0]),
+      minute: int.parse(departureTimeParts[1]),
+    );
+    
+    final arrivalTimeParts = widget.trip.arrivalTime.split(':');
+    _arrivalTime = TimeOfDay(
+      hour: int.parse(arrivalTimeParts[0]),
+      minute: int.parse(arrivalTimeParts[1]),
+    );
+    
+    _basePrice = widget.trip.basePrice;
+    _validFrom = widget.trip.validFrom;
+    _validUntil = widget.trip.validUntil ?? DateTime.now().add(const Duration(days: 365));
   }
 
   Future<void> _loadData() async {
@@ -86,7 +119,7 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: isStart ? _validFrom : _validUntil,
-      firstDate: DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)), // Permettre de sélectionner une date dans le passé pour l'édition
       lastDate: DateTime.now().add(const Duration(days: 3650)),
     );
     if (picked != null) {
@@ -100,7 +133,7 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
     }
   }
 
-  void _toggleWeekday(Weekday weekday) {
+  void _toggleWeekday(int weekday) {
     setState(() {
       if (_selectedWeekdays.contains(weekday)) {
         _selectedWeekdays.remove(weekday);
@@ -118,13 +151,6 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
       return;
     }
     
-    if (_selectedRouteId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner un itinéraire')),
-      );
-      return;
-    }
-    
     if (_selectedWeekdays.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez sélectionner au moins un jour de la semaine')),
@@ -137,15 +163,14 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
       final departureTimeStr = '${_departureTime.hour.toString().padLeft(2, '0')}:${_departureTime.minute.toString().padLeft(2, '0')}';
       final arrivalTimeStr = '${_arrivalTime.hour.toString().padLeft(2, '0')}:${_arrivalTime.minute.toString().padLeft(2, '0')}';
 
-      final trip = RecurringTripModel(
-        id: '',  // Sera généré par le repository
-        routeId: _selectedRouteId!,
-        busId: _selectedBusId,  // Maintenant facultatif
-        weekdays: _selectedWeekdays.map((w) => w.index + 1).toList(),
+      final updatedTrip = widget.trip.copyWith(
+        routeId: _selectedRouteId,
+        busId: _selectedBusId,
+        weekdays: _selectedWeekdays,
         departureTime: departureTimeStr,
         arrivalTime: arrivalTimeStr,
         basePrice: _basePrice,
-        isActive: true,
+        isActive: _isActive,
         validFrom: _validFrom,
         validUntil: _validUntil,
       );
@@ -153,19 +178,19 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
       // Afficher un message de chargement
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Création du voyage récurrent en cours...'),
+          content: Text('Mise à jour du voyage récurrent en cours...'),
           duration: Duration(seconds: 1),
         ),
       );
 
       // Envoyer l'événement au bloc
-      context.read<RecurringTripBloc>().add(RecurringTripCreate(trip));
+      context.read<RecurringTripBloc>().add(RecurringTripUpdate(updatedTrip));
       
       // Fermer la boîte de dialogue immédiatement
       Navigator.of(context).pop();
       
     } catch (e) {
-      print('Error creating recurring trip: $e');
+      print('Error updating recurring trip: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erreur: $e'),
@@ -203,7 +228,7 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nouveau Voyage Récurrent'),
+        title: const Text('Modifier le Voyage Récurrent'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -231,12 +256,14 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
                     );
                   }).toList(),
                   onChanged: (value) {
-                    setState(() {
-                      _selectedRouteId = value;
-                    });
+                    if (value != null) {
+                      setState(() {
+                        _selectedRouteId = value;
+                      });
+                    }
                   },
                   validator: (value) {
-                    if (value == null) {
+                    if (value == null || value.isEmpty) {
                       return 'Veuillez sélectionner un itinéraire';
                     }
                     return null;
@@ -272,6 +299,28 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Statut du voyage
+                SwitchListTile(
+                  title: const Text('Voyage actif'),
+                  value: _isActive,
+                  activeColor: Theme.of(context).primaryColor,
+                  onChanged: (value) {
+                    setState(() {
+                      _isActive = value;
+                    });
+                  },
+                  subtitle: Text(
+                    _isActive 
+                        ? 'Le voyage est actif et sera affiché dans les recherches'
+                        : 'Le voyage est inactif et ne sera pas affiché dans les recherches',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _isActive ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Sélection des jours de la semaine
                 const Text(
                   'Jours de la semaine',
@@ -280,10 +329,11 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  children: Weekday.values.map((weekday) {
+                  children: [1, 2, 3, 4, 5, 6, 7].map((weekday) {
+                    final weekdayName = Weekday.values[weekday - 1].displayName;
                     final isSelected = _selectedWeekdays.contains(weekday);
                     return FilterChip(
-                      label: Text(weekday.displayName),
+                      label: Text(weekdayName),
                       selected: isSelected,
                       onSelected: (_) => _toggleWeekday(weekday),
                     );
@@ -302,7 +352,7 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
                           border: OutlineInputBorder(),
                         ),
                         controller: TextEditingController(
-                          text: '${_departureTime.hour}:${_departureTime.minute.toString().padLeft(2, '0')}',
+                          text: '${_departureTime.hour.toString().padLeft(2, '0')}:${_departureTime.minute.toString().padLeft(2, '0')}',
                         ),
                         onTap: () => _selectTime(context, true),
                       ),
@@ -316,7 +366,7 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
                           border: OutlineInputBorder(),
                         ),
                         controller: TextEditingController(
-                          text: '${_arrivalTime.hour}:${_arrivalTime.minute.toString().padLeft(2, '0')}',
+                          text: '${_arrivalTime.hour.toString().padLeft(2, '0')}:${_arrivalTime.minute.toString().padLeft(2, '0')}',
                         ),
                         onTap: () => _selectTime(context, false),
                       ),
@@ -333,6 +383,7 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
                     prefixText: 'FC ',
                   ),
                   keyboardType: TextInputType.number,
+                  initialValue: _basePrice.toString(),
                   onChanged: (value) {
                     setState(() {
                       _basePrice = double.tryParse(value) ?? 0.0;
@@ -361,7 +412,7 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
                           border: OutlineInputBorder(),
                         ),
                         controller: TextEditingController(
-                          text: '${_validFrom.day}/${_validFrom.month}/${_validFrom.year}',
+                          text: '${_validFrom.day.toString().padLeft(2, '0')}/${_validFrom.month.toString().padLeft(2, '0')}/${_validFrom.year}',
                         ),
                         onTap: () => _selectDate(context, true),
                       ),
@@ -375,7 +426,7 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
                           border: OutlineInputBorder(),
                         ),
                         controller: TextEditingController(
-                          text: '${_validUntil.day}/${_validUntil.month}/${_validUntil.year}',
+                          text: '${_validUntil.day.toString().padLeft(2, '0')}/${_validUntil.month.toString().padLeft(2, '0')}/${_validUntil.year}',
                         ),
                         onTap: () => _selectDate(context, false),
                       ),
@@ -390,7 +441,7 @@ class _RecurringTripCreateScreenState extends State<RecurringTripCreateScreen> {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('Créer le voyage récurrent'),
+                  child: const Text('Enregistrer les modifications'),
                 ),
               ],
             ),

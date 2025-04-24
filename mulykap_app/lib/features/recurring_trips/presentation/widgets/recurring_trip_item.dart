@@ -187,8 +187,14 @@ class RecurringTripItem extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      trip.busPlate ?? 'Bus non assigné',
-                      style: const TextStyle(fontSize: 14),
+                      trip.busPlate != null 
+                          ? trip.busPlate! 
+                          : 'Bus non assigné (sera défini lors de la création du voyage)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontStyle: trip.busPlate == null ? FontStyle.italic : FontStyle.normal,
+                        color: trip.busPlate == null ? Colors.grey : Colors.black,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

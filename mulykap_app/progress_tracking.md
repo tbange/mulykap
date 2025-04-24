@@ -51,7 +51,8 @@
   - [x] Création de voyages récurrents
   - [x] Marquage voyage actif/inactif
   - [x] Suppression de voyages 
-  - [ ] Édition de voyages récurrents (à implémenter)
+  - [x] Édition de voyages récurrents
+  - [x] Rendu du bus facultatif dans les voyages récurrents
   - [ ] Génération de voyages réguliers à partir des modèles récurrents (à implémenter)
 - [x] Gestion des chauffeurs
 - [x] Gestion des agences
@@ -74,8 +75,9 @@
 5. ~~Développer l'écran de gestion des itinéraires et des arrêts~~ ✓
 6. ~~Implémenter l'écran de chauffeurs~~ ✓
 7. ~~Développer l'écran de gestion des voyages récurrents~~ ✓ (partiel)
-   - Terminer l'implémentation de l'édition des voyages récurrents
-   - Implémenter la génération de voyages réels à partir des modèles récurrents
+   - ~~Terminer l'implémentation de l'édition des voyages récurrents~~ ✓
+   - ~~Rendre le bus facultatif dans les voyages récurrents~~ ✓
+   - **Prochaine étape :** Implémenter la génération de voyages réels à partir des modèles récurrents
    - Développer la vue détaillée des voyages récurrents
 
 ### Priorité moyenne (à moyen terme)
@@ -101,6 +103,7 @@
 - Résolu : Problème de contrainte unique pour les arrêts d'itinéraires
 - Résolu : Problème de contexte lors de l'édition des arrêts dans un dialogue
 - Résolu : Problème de localisation pour l'affichage du calendrier des voyages récurrents
+- Résolu : Problème de contexte dans les boîtes de dialogue pour les voyages récurrents (suppression et changement de statut)
 - En cours : Optimisation des performances pour les zones à faible connectivité 
 
 ## Dernières mises à jour
@@ -124,4 +127,7 @@
 - Ajout d'un système de création de voyages récurrents avec sélection des jours de la semaine
 - Correction des problèmes de localisation pour l'affichage du calendrier en français
 - Implémentation de l'activation/désactivation des voyages récurrents
-- Amélioration de l'interface utilisateur du calendrier pour distinguer visuellement les voyages 
+- Amélioration de l'interface utilisateur du calendrier pour distinguer visuellement les voyages
+- Implémentation de l'édition des voyages récurrents avec préservation des valeurs existantes
+- Correction du problème de contexte dans les boîtes de dialogue pour la suppression et le changement de statut
+- Modification de la base de données et de l'interface pour rendre le champ bus facultatif dans les voyages récurrents

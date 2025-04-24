@@ -20,7 +20,7 @@ class RecurringTripRepository {
               departure_city:cities!departure_city_id(name),
               arrival_city:cities!arrival_city_id(name)
             ),
-            buses!inner(license_plate)
+            buses(license_plate)
           ''')
           .order('created_at', ascending: false);
 
@@ -33,8 +33,13 @@ class RecurringTripRepository {
         final arrivalCityName = route['arrival_city']['name'];
         tripData['route_name'] = '$departureCityName - $arrivalCityName';
         
-        // Extraire la plaque d'immatriculation du bus
-        tripData['bus_plate'] = trip['buses']['license_plate'];
+        // Extraire la plaque d'immatriculation du bus s'il existe
+        final buses = trip['buses'];
+        if (buses != null && buses is List && buses.isNotEmpty) {
+          tripData['bus_plate'] = buses[0]['license_plate'];
+        } else {
+          tripData['bus_plate'] = null;
+        }
         
         return RecurringTripModel.fromMap(tripData);
       }).toList();
@@ -55,7 +60,7 @@ class RecurringTripRepository {
               departure_city:cities!departure_city_id(name),
               arrival_city:cities!arrival_city_id(name)
             ),
-            buses!inner(license_plate)
+            buses(license_plate)
           ''')
           .eq('id', id)
           .single();
@@ -68,8 +73,13 @@ class RecurringTripRepository {
       final arrivalCityName = route['arrival_city']['name'];
       tripData['route_name'] = '$departureCityName - $arrivalCityName';
       
-      // Extraire la plaque d'immatriculation du bus
-      tripData['bus_plate'] = response['buses']['license_plate'];
+      // Extraire la plaque d'immatriculation du bus s'il existe
+      final buses = response['buses'];
+      if (buses != null && buses is List && buses.isNotEmpty) {
+        tripData['bus_plate'] = buses[0]['license_plate'];
+      } else {
+        tripData['bus_plate'] = null;
+      }
 
       return RecurringTripModel.fromMap(tripData);
     } catch (e) {
