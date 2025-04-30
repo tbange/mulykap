@@ -58,14 +58,29 @@
 - [x] Gestion des chauffeurs
 - [x] Gestion des agences
 - [x] Gestion des villes
-- [ ] Gestion des voyages (planifiés, exécutés, etc.)
+- [x] Gestion des voyages (partielle)
+  - [x] Écran principal de liste des voyages générés
+  - [x] Filtrage des voyages par date, statut
+  - [x] Vue par onglets (Tous/Aujourd'hui/À venir)
   - [ ] Affectation des bus aux voyages
   - [ ] Affectation des chauffeurs aux voyages
   - [ ] Gestion du statut des voyages (planifié, en cours, terminé, annulé)
+  - [ ] Vue détaillée d'un voyage
 - [ ] Gestion des réservations
+  - [ ] Création d'une réservation
+  - [ ] Liste des réservations
+  - [ ] Détails d'une réservation
+  - [ ] Modification/Annulation d'une réservation
 - [ ] Gestion des sièges et bagages
+  - [ ] Sélection de siège lors de la réservation
+  - [ ] Gestion des capacités de bagages
 - [ ] Gestion des tickets
+  - [ ] Génération de ticket
+  - [ ] Envoi de ticket par email/SMS
+  - [ ] Validation de ticket
 - [x] Gestion des paiements (structure de base)
+  - [ ] Intégration des API de paiement mobile
+  - [ ] Suivi des transactions
 - [ ] Gestion des promotions
 - [ ] Gestion des notifications utilisateur
 - [ ] Génération de rapports et statistiques
@@ -83,20 +98,36 @@
    - ~~Terminer l'implémentation de l'édition des voyages récurrents~~ ✓
    - ~~Rendre le bus facultatif dans les voyages récurrents~~ ✓
    - ~~Implémenter la génération de voyages réels à partir des modèles récurrents~~ ✓ (interface)
-   - **À faire :** Corriger les problèmes de génération de voyages (incompatibilité enum)
+   - **À faire immédiatement :** Corriger les problèmes de génération de voyages (incompatibilité enum)
+     - Le problème identifié : Dans le code, l'enum TripStatus utilise 'planned' comme valeur, mais dans la base de données l'enum 'voyage_status' utilise également 'planned'. Cependant, il y a une disparité quand les voyages sont générés.
+     - Dans RecurringTripRepository, la méthode generateTripsFromRecurringTrip utilise "status: 'planned'" pour les nouveaux voyages, ce qui correspond à l'enum de la base de données.
+     - Solutions possibles :
+       1. Modifier l'enum dans la base de données pour inclure 'scheduled' si nécessaire
+       2. Modifier l'enum du code TripStatus pour assurer la cohérence avec la base de données
+       3. Vérifier le processus de génération pour s'assurer que le statut correct est utilisé
    - Développer la vue détaillée des voyages récurrents
-8. Développer l'écran de gestion des voyages (réguliers) à partir des modèles récurrents
-   - Créer la structure de base pour l'affichage des voyages générés
-   - Implémenter les filtres (date, itinéraire, etc.)
-   - Ajouter les fonctionnalités de CRUD pour les voyages
-   - **À faire (nouveau) :** Implémenter l'affectation des bus aux voyages
-   - **À faire (nouveau) :** Implémenter l'affectation des chauffeurs aux voyages
-   - **À faire (nouveau) :** Développer l'interface de gestion des statuts des voyages
+8. Développer l'écran de gestion des voyages (réguliers) à partir des modèles récurrents (partiellement implémenté)
+   - ~~Créer la structure de base pour l'affichage des voyages générés~~ ✓
+   - ~~Implémenter les filtres (date, statut)~~ ✓
+   - ~~Implémenter la vue par onglets (Tous/Aujourd'hui/À venir)~~ ✓
+   - Ajouter les fonctionnalités de CRUD complètes pour les voyages
+   - Implémenter l'affectation des bus aux voyages
+   - Implémenter l'affectation des chauffeurs aux voyages
+   - Développer l'interface de gestion des statuts des voyages
+   - Ajouter une vue détaillée pour chaque voyage
 
 ### Priorité moyenne (à moyen terme)
 9. Implémenter les fonctionnalités de recherche de voyages
+   - Développer l'interface de recherche avec filtres avancés
+   - Implémenter l'affichage des résultats de recherche
 10. Développer les écrans de réservation de billets
+    - Créer le flux complet de réservation
+    - Implémenter la sélection de sièges
+    - Développer le système de gestion des bagages
 11. Intégrer les services de paiement mobile
+    - Intégrer ArtelMoney
+    - Intégrer M-Pesa
+    - Intégrer Orange Money
 12. Implémenter la gestion des promotions
 13. Développer le système de notifications
 
@@ -118,8 +149,11 @@
 - Résolu : Problème de localisation pour l'affichage du calendrier des voyages récurrents
 - Résolu : Problème de contexte dans les boîtes de dialogue pour les voyages récurrents (suppression et changement de statut)
 - **En cours** : Problème avec la génération de voyages - incompatibilité enum 'voyage_status' (scheduled vs planned)
+  - Analyse détaillée: L'enum TripStatus dans le code utilise 'planned' comme la base de données
+  - Le problème semble se produire lors des opérations de lecture/écriture entre le code et la base de données
+  - Nécessite une vérification approfondie du processus de conversion des valeurs d'enum lors de la génération des voyages
 - En cours : Optimisation des performances pour les zones à faible connectivité 
-- **Nouveau** : Implémentation de l'affectation des bus et chauffeurs aux voyages
+- **En cours** : Implémentation de l'affectation des bus et chauffeurs aux voyages
 
 ## Dernières mises à jour
 - Implémentation complète des fonctionnalités de réinitialisation et changement de mot de passe
@@ -149,6 +183,9 @@
 - Implémentation complète de la génération de voyages réels à partir des modèles récurrents
 - Ajout d'une interface dédiée pour la génération de voyages avec sélection de période et paramètres
 - Intégration de boutons dans l'interface pour faciliter l'accès à la fonctionnalité de génération
-- **Nouveau** : Transformation de l'écran de génération de voyages en dialogue pour une meilleure UX
-- **Nouveau** : Tentative de correction du problème d'enum incompatible entre le code (scheduled) et la base de données (planned)
-- **Nouveau** : Planification de l'implémentation de l'affectation des bus et chauffeurs aux voyages générés
+- Transformation de l'écran de génération de voyages en dialogue pour une meilleure UX
+- Tentative de correction du problème d'enum incompatible entre le code (TripStatus) et la base de données (voyage_status)
+- Planification de l'implémentation de l'affectation des bus et chauffeurs aux voyages générés
+- **Nouveau** : Implémentation de l'écran de liste des voyages avec filtrage par date et statut
+- **Nouveau** : Ajout d'une vue par onglets pour faciliter la navigation entre différentes catégories de voyages
+- **Nouveau** : Analyse détaillée du problème d'incompatibilité d'enum pour orienter la correction

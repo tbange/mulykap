@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:mulykap_app/core/presentation/widgets/error_message.dart';
 import 'package:mulykap_app/core/presentation/widgets/loading_spinner.dart';
 import 'package:mulykap_app/features/buses/data/repositories/bus_repository.dart';
@@ -12,6 +13,7 @@ import 'package:mulykap_app/features/trips/presentation/bloc/trip_bloc.dart';
 import 'package:mulykap_app/features/trips/presentation/bloc/trip_event.dart';
 import 'package:mulykap_app/features/trips/presentation/bloc/trip_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class TripListScreen extends StatefulWidget {
   const TripListScreen({Key? key}) : super(key: key);
@@ -21,29 +23,66 @@ class TripListScreen extends StatefulWidget {
 }
 
 class _TripListScreenState extends State<TripListScreen> with SingleTickerProviderStateMixin {
+  // Variables pour les filtres
   DateTime? _selectedDate;
   TripStatus? _selectedStatus;
-  TabController? _tabController;
-  final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
   
+  // Variables pour le calendrier
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime _selectedDay = DateTime.now();
+  bool _showCalendarView = true; // Pour montrer/cacher le calendrier sur mobile
+  Map<DateTime, List<TripModel>> _eventsByDay = {};
+  bool _isLocaleInitialized = false;
+  
+  // Variables pour les chauffeurs et bus
   List<DriverModel> _drivers = [];
   List<BusModel> _buses = [];
   bool _isLoadingDrivers = false;
   bool _isLoadingBuses = false;
   
+  // Contrôleurs
   final ScrollController _scrollController = ScrollController();
+  TabController? _tabController;
+  final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     
+    // Initialiser les données de localisation
+    _initializeLocale();
+    
     // Chargement initial des voyages
-    context.read<TripBloc>().add(TripLoadAll());
+    _loadTrips();
     
     // Chargement des chauffeurs et des bus pour les assignations
     _loadDrivers();
     _loadBuses();
+  }
+  
+  Future<void> _initializeLocale() async {
+    await initializeDateFormatting('fr_FR', null);
+    setState(() {
+      _isLocaleInitialized = true;
+    });
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recharger les voyages à chaque changement de dépendances
+    _loadTrips();
+  }
+  
+  void _loadTrips() {
+    // Utiliser un microtask pour s'assurer que cela se produit après le build
+    Future.microtask(() {
+      if (mounted) {
+        context.read<TripBloc>().add(TripLoadAll());
+      }
+    });
   }
   
   @override
@@ -119,56 +158,75 @@ class _TripListScreenState extends State<TripListScreen> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final isTabletOrDesktop = MediaQuery.of(context).size.width >= 768;
+    
+    if (!_isLocaleInitialized) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Voyages'),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Initialisation des données de localisation...'),
+            ],
+          ),
+        ),
+      );
+    }
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Voyages'),
         actions: [
-          // Bouton de filtre par date
+          if (!isTabletOrDesktop)
+            IconButton(
+              icon: Icon(_showCalendarView ? Icons.list : Icons.calendar_month),
+              onPressed: () {
+                setState(() {
+                  _showCalendarView = !_showCalendarView;
+                });
+              },
+              tooltip: _showCalendarView ? 'Afficher la liste' : 'Afficher le calendrier',
+            ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshData,
+            tooltip: 'Rafraîchir les données',
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterBottomSheet,
+            tooltip: 'Filtrer par statut',
+          ),
           IconButton(
             icon: const Icon(Icons.calendar_today),
             tooltip: 'Filtrer par date',
             onPressed: _selectDateFilter,
           ),
-          // Bouton pour ouvrir le menu de filtres
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Filtrer par statut',
-            onPressed: _showFilterBottomSheet,
-          ),
-          // Bouton pour rafraîchir la liste
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Rafraîchir',
-            onPressed: () => context.read<TripBloc>().add(TripLoadAll()),
-          ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Tous'),
-            Tab(text: 'Aujourd\'hui'),
-            Tab(text: 'À venir'),
-          ],
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                context.read<TripBloc>().add(TripResetFilters());
-                break;
-              case 1:
-                context.read<TripBloc>().add(TripFilterByDate(DateTime.now()));
-                break;
-              case 2:
-                final today = DateTime.now();
-                context.read<TripBloc>().add(TripFilterByDateRange(
-                  startDate: today.add(const Duration(days: 1)), 
-                  endDate: today.add(const Duration(days: 10)),
-                ));
-                break;
-            }
-          },
-        ),
       ),
-      body: BlocBuilder<TripBloc, TripState>(
+      body: BlocConsumer<TripBloc, TripState>(
+        listener: (context, state) {
+          if (state.isLoading) return;
+          
+          if (state.error != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur: ${state.error}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+          
+          setState(() {
+            _buildEventsByDay(state.trips);
+          });
+        },
         builder: (context, state) {
           if (state.isLoading) {
             return const LoadingSpinner();
@@ -182,7 +240,7 @@ class _TripListScreenState extends State<TripListScreen> with SingleTickerProvid
           }
 
           final trips = state.filteredTrips;
-
+          
           if (trips.isEmpty) {
             return Center(
               child: Column(
@@ -222,110 +280,27 @@ class _TripListScreenState extends State<TripListScreen> with SingleTickerProvid
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              context.read<TripBloc>().add(TripLoadAll());
-            },
-            child: Column(
-              children: [
-                // Afficher les filtres actifs
-                if (state.hasFilters)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    color: Colors.grey.shade200,
-                    child: Row(
-                      children: [
-                        const Icon(Icons.filter_list, size: 16),
-                        const SizedBox(width: 8),
-                        const Text('Filtres actifs:'),
-                        const SizedBox(width: 8),
-                        
-                        // Filtre de statut
-                        if (state.statusFilter != null)
-                          Chip(
-                            label: Text(state.statusFilter!.displayName),
-                            deleteIcon: const Icon(Icons.clear, size: 16),
-                            onDeleted: () {
-                              setState(() {
-                                _selectedStatus = null;
-                              });
-                              context.read<TripBloc>().add(
-                                    TripFilterByStatus(null),
-                                  );
-                            },
-                          ),
-                        
-                        const SizedBox(width: 8),
-                        
-                        // Filtre de date
-                        if (state.dateFilter != null)
-                          Chip(
-                            label: Text(
-                              _dateFormat.format(state.dateFilter!),
-                            ),
-                            deleteIcon: const Icon(Icons.clear, size: 16),
-                            onDeleted: () {
-                              setState(() {
-                                _selectedDate = null;
-                              });
-                              context.read<TripBloc>().add(
-                                    TripFilterByDate(null),
-                                  );
-                            },
-                          ),
-                          
-                        const Spacer(),
-                        
-                        // Bouton pour réinitialiser tous les filtres
-                        TextButton.icon(
-                          icon: const Icon(Icons.clear, size: 16),
-                          label: const Text('Tout effacer'),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _selectedDate = null;
-                              _selectedStatus = null;
-                              _tabController?.index = 0;
-                            });
-                            context.read<TripBloc>().add(TripResetFilters());
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                
-                // Liste des voyages
-                Expanded(
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    itemCount: trips.length,
-                    padding: const EdgeInsets.all(8),
-                    itemBuilder: (context, index) {
-                      final trip = trips[index];
-                      return _buildTripCard(trip);
-                    },
-                  ),
-                ),
-              ],
-            ),
+          if (!isTabletOrDesktop) {
+            return _showCalendarView 
+              ? _buildCalendarView(context)
+              : _buildListView(context, state, trips);
+          }
+          
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 1,
+                child: _buildListView(context, state, trips),
+              ),
+              const VerticalDivider(width: 1, thickness: 1),
+              Expanded(
+                flex: 1,
+                child: _buildCalendarView(context),
+              ),
+            ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _scrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOut,
-          );
-        },
-        tooltip: 'Retour en haut',
-        child: const Icon(Icons.arrow_upward),
       ),
     );
   }
@@ -545,32 +520,80 @@ class _TripListScreenState extends State<TripListScreen> with SingleTickerProvid
     }
   }
 
-  Future<void> _selectDateFilter() async {
-    final DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2023),
-      lastDate: DateTime(2030),
+  Widget _buildListView(BuildContext context, TripState state, List<TripModel> trips) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        context.read<TripBloc>().add(TripLoadAll());
+      },
+      child: Column(
+        children: [
+          if (state.hasFilters)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.grey.shade200,
+              child: Row(
+                children: [
+                  const Icon(Icons.filter_list, size: 16),
+                  const SizedBox(width: 8),
+                  const Text('Filtres actifs:'),
+                  const SizedBox(width: 8),
+                  if (_selectedStatus != null)
+                    Chip(
+                      label: Text(_selectedStatus!.displayName),
+                      deleteIcon: const Icon(Icons.clear, size: 16),
+                      onDeleted: () {
+                        setState(() {
+                          _selectedStatus = null;
+                        });
+                        context.read<TripBloc>().add(TripFilterByStatus(null));
+                      },
+                    ),
+                  if (_selectedDate != null) ...[
+                    const SizedBox(width: 8),
+                    Chip(
+                      label: Text(DateFormat('dd/MM/yyyy').format(_selectedDate!)),
+                      deleteIcon: const Icon(Icons.clear, size: 16),
+                      onDeleted: () {
+                        setState(() {
+                          _selectedDate = null;
+                        });
+                        context.read<TripBloc>().add(TripFilterByDate(null));
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: trips.length,
+              itemBuilder: (context, index) {
+                final trip = trips[index];
+                return _buildTripCard(trip);
+              },
+            ),
+          ),
+        ],
+      ),
     );
-
-    if (pickedDate != null) {
-      setState(() {
-        _selectedDate = pickedDate;
-      });
-      
-      context.read<TripBloc>().add(TripFilterByDate(pickedDate));
-    }
   }
 
   void _showFilterBottomSheet() {
+    // Capturer l'état actuel du filtre pour l'afficher correctement dans le bottomsheet
+    final TripStatus? currentStatusFilter = _selectedStatus;
+    
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            // Initialiser l'état local avec le filtre actuel
+            TripStatus? localSelectedStatus = currentStatusFilter;
+            
             return Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -585,54 +608,99 @@ class _TripListScreenState extends State<TripListScreen> with SingleTickerProvid
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildStatusFilterChip(
-                        TripStatus.planned,
-                        'Programmé',
-                        Icons.schedule,
-                        Colors.orange,
-                        setState,
+                      Expanded(
+                        child: _buildStatusFilterButton(
+                          status: TripStatus.planned,
+                          label: 'Programmé',
+                          icon: Icons.schedule_outlined,
+                          color: Colors.orange,
+                          isSelected: localSelectedStatus == TripStatus.planned,
+                          onTap: () {
+                            setState(() {
+                              localSelectedStatus = localSelectedStatus == TripStatus.planned 
+                                  ? null 
+                                  : TripStatus.planned;
+                            });
+                          },
+                        ),
                       ),
-                      _buildStatusFilterChip(
-                        TripStatus.in_progress,
-                        'En cours',
-                        Icons.directions_bus,
-                        Colors.blue,
-                        setState,
-                      ),
-                      _buildStatusFilterChip(
-                        TripStatus.completed,
-                        'Terminé',
-                        Icons.check_circle,
-                        Colors.green,
-                        setState,
-                      ),
-                      _buildStatusFilterChip(
-                        TripStatus.cancelled,
-                        'Annulé',
-                        Icons.cancel,
-                        Colors.red,
-                        setState,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatusFilterButton(
+                          status: TripStatus.in_progress,
+                          label: 'En cours',
+                          icon: Icons.directions_bus_outlined,
+                          color: Colors.blue,
+                          isSelected: localSelectedStatus == TripStatus.in_progress,
+                          onTap: () {
+                            setState(() {
+                              localSelectedStatus = localSelectedStatus == TripStatus.in_progress 
+                                  ? null 
+                                  : TripStatus.in_progress;
+                            });
+                          },
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: _buildStatusFilterButton(
+                          status: TripStatus.completed,
+                          label: 'Terminé',
+                          icon: Icons.check_circle_outline,
+                          color: Colors.green,
+                          isSelected: localSelectedStatus == TripStatus.completed,
+                          onTap: () {
+                            setState(() {
+                              localSelectedStatus = localSelectedStatus == TripStatus.completed 
+                                  ? null 
+                                  : TripStatus.completed;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatusFilterButton(
+                          status: TripStatus.cancelled,
+                          label: 'Annulé',
+                          icon: Icons.cancel_outlined,
+                          color: Colors.red,
+                          isSelected: localSelectedStatus == TripStatus.cancelled,
+                          onTap: () {
+                            setState(() {
+                              localSelectedStatus = localSelectedStatus == TripStatus.cancelled 
+                                  ? null 
+                                  : TripStatus.cancelled;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       TextButton(
                         onPressed: () {
                           setState(() {
-                            _selectedStatus = null;
-                          });
-                          
-                          this.setState(() {
-                            _selectedStatus = null;
+                            localSelectedStatus = null;
                           });
                           
                           Navigator.pop(context);
+                          
+                          // Réinitialiser uniquement le filtre de statut
+                          this.setState(() {
+                            _selectedStatus = null;
+                          });
                           
                           context.read<TripBloc>().add(
                             TripFilterByStatus(null),
@@ -640,17 +708,23 @@ class _TripListScreenState extends State<TripListScreen> with SingleTickerProvid
                         },
                         child: const Text('Réinitialiser'),
                       ),
-                      const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
                           
-                          if (_selectedStatus != null) {
-                            context.read<TripBloc>().add(
-                              TripFilterByStatus(_selectedStatus),
-                                );
-                          }
+                          // Mettre à jour l'état local
+                          this.setState(() {
+                            _selectedStatus = localSelectedStatus;
+                          });
+                          
+                          // Appliquer le filtre
+                          context.read<TripBloc>().add(
+                            TripFilterByStatus(localSelectedStatus),
+                          );
                         },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
                         child: const Text('Appliquer'),
                       ),
                     ],
@@ -664,37 +738,232 @@ class _TripListScreenState extends State<TripListScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildStatusFilterChip(
-    TripStatus status,
-    String label,
-    IconData icon,
-    Color color,
-    StateSetter setState,
-  ) {
-    final isSelected = _selectedStatus == status;
+  Widget _buildStatusFilterButton({
+    required TripStatus status,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? color : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? color : Colors.grey.shade300,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? Colors.white : color,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectDateFilter() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2023),
+      lastDate: DateTime(2030),
+      locale: const Locale('fr', 'FR'),
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+      
+      context.read<TripBloc>().add(TripFilterByDate(pickedDate));
+    }
+  }
+
+  // Méthode pour construire les événements par jour à partir de la liste des voyages
+  void _buildEventsByDay(List<TripModel> trips) {
+    _eventsByDay = {};
     
-    return FilterChip(
-      label: Text(label),
-      avatar: Icon(
-        icon,
-        color: isSelected ? Colors.white : color,
-        size: 18,
+    for (var trip in trips) {
+      // Ignorer les voyages annulés
+      if (trip.status == TripStatus.cancelled) continue;
+      
+      // Normaliser la date pour éviter les problèmes d'heure
+      final departureDay = DateTime(
+        trip.departureTime.year, 
+        trip.departureTime.month, 
+        trip.departureTime.day
+      );
+      
+      if (_eventsByDay[departureDay] == null) {
+        _eventsByDay[departureDay] = [];
+      }
+      
+      if (!_eventsByDay[departureDay]!.any((t) => t.id == trip.id)) {
+        _eventsByDay[departureDay]!.add(trip);
+      }
+    }
+  }
+  
+  // Récupère les événements pour un jour donné
+  List<TripModel> _getEventsForDay(DateTime day) {
+    final normalizedDay = DateTime(day.year, day.month, day.day);
+    
+    if (_eventsByDay.containsKey(normalizedDay)) {
+      return _eventsByDay[normalizedDay] ?? [];
+    }
+    
+    for (final DateTime eventDay in _eventsByDay.keys) {
+      if (eventDay.year == normalizedDay.year && 
+          eventDay.month == normalizedDay.month && 
+          eventDay.day == normalizedDay.day) {
+        return _eventsByDay[eventDay] ?? [];
+      }
+    }
+    
+    return [];
+  }
+  
+  // Méthode pour rafraîchir explicitement les données
+  void _refreshData() {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Rafraîchissement en cours...'),
+        duration: Duration(seconds: 1),
       ),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _selectedStatus = selected ? status : null;
-        });
-        
-        this.setState(() {
-          _selectedStatus = selected ? status : null;
-        });
+    );
+    
+    if (mounted) {
+      context.read<TripBloc>().add(TripLoadAll());
+    }
+  }
+
+  Widget _buildCalendarView(BuildContext context) {
+    return Column(
+      children: [
+        Card(
+          margin: const EdgeInsets.all(8.0),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TableCalendar(
+              firstDay: DateTime.now().subtract(const Duration(days: 365)),
+              lastDay: DateTime.now().add(const Duration(days: 365 * 3)),
+              focusedDay: _focusedDay,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              calendarFormat: _calendarFormat,
+              startingDayOfWeek: StartingDayOfWeek.monday,
+              locale: 'fr_FR',
+              headerStyle: HeaderStyle(
+                formatButtonTextStyle: const TextStyle(color: Colors.white),
+                formatButtonDecoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: BorderRadius.circular(20.0),
+                ),
+                titleCentered: true,
+                titleTextStyle: const TextStyle(fontSize: 18.0),
+              ),
+              calendarStyle: const CalendarStyle(
+                outsideDaysVisible: false,
+                weekendTextStyle: TextStyle(color: Colors.red),
+                markerSize: 8.0,
+                markerMargin: EdgeInsets.symmetric(horizontal: 0.3),
+              ),
+              calendarBuilders: CalendarBuilders(
+                markerBuilder: (context, date, events) {
+                  if (events.isEmpty) return null;
+                  
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: events.map((trip) {
+                      final TripModel tripEvent = trip as TripModel;
+                      return Container(
+                        width: 8.0,
+                        height: 8.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 0.3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _getStatusColor(tripEvent.status),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+              eventLoader: _getEventsForDay,
+              onDaySelected: (selectedDay, focusedDay) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+                context.read<TripBloc>().add(TripFilterByDate(selectedDay));
+              },
+              onFormatChanged: (format) {
+                setState(() {
+                  _calendarFormat = format;
+                });
+              },
+              onPageChanged: (focusedDay) {
+                setState(() {
+                  _focusedDay = focusedDay;
+                });
+              },
+            ),
+          ),
+        ),
+        const Divider(),
+        Expanded(
+          child: _buildEventsForSelectedDay(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventsForSelectedDay() {
+    final events = _getEventsForDay(_selectedDay);
+    
+    if (events.isEmpty) {
+      return const Center(
+        child: Text(
+          'Aucun voyage prévu pour ce jour',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey,
+          ),
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      itemCount: events.length,
+      itemBuilder: (context, index) {
+        final trip = events[index];
+        return _buildTripCard(trip);
       },
-      backgroundColor: color.withOpacity(0.1),
-      selectedColor: color,
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : null,
-      ),
     );
   }
 
@@ -873,12 +1142,19 @@ class _TripListScreenState extends State<TripListScreen> with SingleTickerProvid
   }
   
   Future<void> _updateTripStatus(TripModel trip, TripStatus newStatus) async {
-    // Mettre à jour le statut du voyage
+    // Feedback visuel pour l'utilisateur
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Mise à jour du statut en ${newStatus.displayName}...'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+    
+    // Utiliser l'événement spécifique TripUpdateStatus au lieu de TripUpdate
     context.read<TripBloc>().add(
-      TripUpdate(
-        trip.copyWith(
-          status: newStatus,
-        ),
+      TripUpdateStatus(
+        id: trip.id,
+        status: newStatus,
       ),
     );
   }

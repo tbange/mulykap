@@ -162,13 +162,30 @@ class TripBloc extends Bloc<TripEvent, TripState> {
 
   // Filtrer les voyages par statut
   void _onTripFilterByStatus(TripFilterByStatus event, Emitter<TripState> emit) {
-    emit(state.copyWith(filterStatus: event.status));
+    // Conserver les filtres de date actuels tout en mettant à jour le filtre de statut
+    final TripState newState = state.copyWith(
+      filterStatus: event.status,
+      // Ne pas effacer les filtres de date existants
+      filterDate: state.filterDate,
+      filterStartDate: state.filterStartDate,
+      filterEndDate: state.filterEndDate,
+    );
+    
+    emit(newState);
     _applyFilters(emit);
   }
 
   // Filtrer les voyages par date
   void _onTripFilterByDate(TripFilterByDate event, Emitter<TripState> emit) {
-    emit(state.copyWith(filterDate: event.date));
+    // Conserver le filtre de statut tout en mettant à jour le filtre de date
+    emit(state.copyWith(
+      filterDate: event.date, 
+      // Réinitialiser les filtres de plage de dates
+      filterStartDate: null,
+      filterEndDate: null,
+      // Conserver le filtre de statut
+      filterStatus: state.filterStatus,
+    ));
     _applyFilters(emit);
   }
   
@@ -185,8 +202,13 @@ class TripBloc extends Bloc<TripEvent, TripState> {
         isLoading: false,
         error: null,
         clearError: true,
+        // Mettre à jour les filtres de plage de dates
         filterStartDate: event.startDate,
         filterEndDate: event.endDate,
+        // Réinitialiser le filtre de date unique
+        filterDate: null,
+        // Conserver le filtre de statut
+        filterStatus: state.filterStatus,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -198,7 +220,17 @@ class TripBloc extends Bloc<TripEvent, TripState> {
 
   // Réinitialiser tous les filtres
   void _onTripResetFilters(TripResetFilters event, Emitter<TripState> emit) {
-    emit(state.copyWithResetFilters());
+    // Réinitialiser tous les filtres mais conserver la liste des voyages chargés
+    final newState = state.copyWith(
+      filterRouteId: null,
+      filterBusId: null,
+      filterDriverId: null,
+      filterStatus: null,
+      filterDate: null,
+      filterStartDate: null,
+      filterEndDate: null,
+    );
+    emit(newState);
   }
 
   // Appliquer les filtres actuels
