@@ -10,6 +10,7 @@ import 'package:mulykap_app/features/dashboard/presentation/screens/dashboard_sc
 import 'package:mulykap_app/features/routes/data/repositories/route_repository.dart';
 import 'package:mulykap_app/features/routes/data/repositories/route_stop_repository.dart';
 import 'package:mulykap_app/features/recurring_trips/data/repositories/recurring_trip_repository.dart';
+import 'package:mulykap_app/features/trips/data/repositories/trip_repository.dart';
 import 'package:mulykap_app/features/splash/presentation/screens/splash_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -40,6 +41,11 @@ class MulykapApp extends StatelessWidget {
         ),
         RepositoryProvider<RecurringTripRepository>(
           create: (context) => RecurringTripRepository(
+            supabaseClient: supabaseClient,
+          ),
+        ),
+        RepositoryProvider<TripRepository>(
+          create: (context) => TripRepository(
             supabaseClient: supabaseClient,
           ),
         ),

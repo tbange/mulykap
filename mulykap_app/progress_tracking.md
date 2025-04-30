@@ -45,7 +45,7 @@
 - [x] Gestion de la flotte de bus
 - [x] Gestion des itinéraires
 - [x] Gestion des arrêts
-- [x] Gestion des voyages récurrents (partielle)
+- [x] Gestion des voyages récurrents (complète)
   - [x] Écran de liste des voyages récurrents
   - [x] Vue calendrier des voyages récurrents
   - [x] Création de voyages récurrents
@@ -53,10 +53,15 @@
   - [x] Suppression de voyages 
   - [x] Édition de voyages récurrents
   - [x] Rendu du bus facultatif dans les voyages récurrents
-  - [ ] Génération de voyages réguliers à partir des modèles récurrents (à implémenter)
+  - [x] Génération de voyages réguliers à partir des modèles récurrents (interface)
+  - [ ] Résolution des problèmes de génération (enum incompatible entre code et BDD)
 - [x] Gestion des chauffeurs
 - [x] Gestion des agences
 - [x] Gestion des villes
+- [ ] Gestion des voyages (planifiés, exécutés, etc.)
+  - [ ] Affectation des bus aux voyages
+  - [ ] Affectation des chauffeurs aux voyages
+  - [ ] Gestion du statut des voyages (planifié, en cours, terminé, annulé)
 - [ ] Gestion des réservations
 - [ ] Gestion des sièges et bagages
 - [ ] Gestion des tickets
@@ -77,21 +82,29 @@
 7. ~~Développer l'écran de gestion des voyages récurrents~~ ✓ (partiel)
    - ~~Terminer l'implémentation de l'édition des voyages récurrents~~ ✓
    - ~~Rendre le bus facultatif dans les voyages récurrents~~ ✓
-   - **Prochaine étape :** Implémenter la génération de voyages réels à partir des modèles récurrents
+   - ~~Implémenter la génération de voyages réels à partir des modèles récurrents~~ ✓ (interface)
+   - **À faire :** Corriger les problèmes de génération de voyages (incompatibilité enum)
    - Développer la vue détaillée des voyages récurrents
+8. Développer l'écran de gestion des voyages (réguliers) à partir des modèles récurrents
+   - Créer la structure de base pour l'affichage des voyages générés
+   - Implémenter les filtres (date, itinéraire, etc.)
+   - Ajouter les fonctionnalités de CRUD pour les voyages
+   - **À faire (nouveau) :** Implémenter l'affectation des bus aux voyages
+   - **À faire (nouveau) :** Implémenter l'affectation des chauffeurs aux voyages
+   - **À faire (nouveau) :** Développer l'interface de gestion des statuts des voyages
 
 ### Priorité moyenne (à moyen terme)
-8. Implémenter les fonctionnalités de recherche de voyages
-9. Développer les écrans de réservation de billets
-10. Intégrer les services de paiement mobile
-11. Implémenter la gestion des promotions
-12. Développer le système de notifications
+9. Implémenter les fonctionnalités de recherche de voyages
+10. Développer les écrans de réservation de billets
+11. Intégrer les services de paiement mobile
+12. Implémenter la gestion des promotions
+13. Développer le système de notifications
 
 ### Priorité basse (à long terme)
-13. Implémentation du multilinguisme
-14. Optimisation pour les zones à faible connectivité
-15. Rapports et tableaux de bord avancés
-16. Exportation des données et rapports
+14. Implémentation du multilinguisme
+15. Optimisation pour les zones à faible connectivité
+16. Rapports et tableaux de bord avancés
+17. Exportation des données et rapports
 
 ## Problèmes rencontrés
 - Résolu : Problème de conflit de type AuthState avec Supabase
@@ -104,7 +117,9 @@
 - Résolu : Problème de contexte lors de l'édition des arrêts dans un dialogue
 - Résolu : Problème de localisation pour l'affichage du calendrier des voyages récurrents
 - Résolu : Problème de contexte dans les boîtes de dialogue pour les voyages récurrents (suppression et changement de statut)
+- **En cours** : Problème avec la génération de voyages - incompatibilité enum 'voyage_status' (scheduled vs planned)
 - En cours : Optimisation des performances pour les zones à faible connectivité 
+- **Nouveau** : Implémentation de l'affectation des bus et chauffeurs aux voyages
 
 ## Dernières mises à jour
 - Implémentation complète des fonctionnalités de réinitialisation et changement de mot de passe
@@ -119,7 +134,7 @@
 - Implémentation complète de la gestion des itinéraires avec configuration des arrêts
 - Implémentation d'un système dynamique pour ajouter des arrêts intermédiaires entre deux villes
 - Développement d'un écran complet de gestion des arrêts avec filtrage avancé
-- Correction des problèmes de contrainte unique dans la base de données pour les arrêts
+- Correction des problèmes de contrainte unique dans la base de données pour les arrêts 
 - Implémentation complète de la gestion des chauffeurs avec formulaires d'ajout/édition
 - Ajout de la possibilité d'assigner des chauffeurs à des agences
 - Développement d'une interface pour la gestion des voyages récurrents
@@ -131,3 +146,9 @@
 - Implémentation de l'édition des voyages récurrents avec préservation des valeurs existantes
 - Correction du problème de contexte dans les boîtes de dialogue pour la suppression et le changement de statut
 - Modification de la base de données et de l'interface pour rendre le champ bus facultatif dans les voyages récurrents
+- Implémentation complète de la génération de voyages réels à partir des modèles récurrents
+- Ajout d'une interface dédiée pour la génération de voyages avec sélection de période et paramètres
+- Intégration de boutons dans l'interface pour faciliter l'accès à la fonctionnalité de génération
+- **Nouveau** : Transformation de l'écran de génération de voyages en dialogue pour une meilleure UX
+- **Nouveau** : Tentative de correction du problème d'enum incompatible entre le code (scheduled) et la base de données (planned)
+- **Nouveau** : Planification de l'implémentation de l'affectation des bus et chauffeurs aux voyages générés

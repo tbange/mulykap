@@ -8,6 +8,7 @@ class RecurringTripItem extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onToggleStatus;
+  final VoidCallback? onGenerate;
 
   const RecurringTripItem({
     Key? key,
@@ -16,6 +17,7 @@ class RecurringTripItem extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onToggleStatus,
+    this.onGenerate,
   }) : super(key: key);
 
   @override
@@ -234,6 +236,13 @@ class RecurringTripItem extends StatelessWidget {
                   // Actions
                   Row(
                     children: [
+                      if (onGenerate != null && trip.isActive)
+                        IconButton(
+                          icon: const Icon(Icons.calendar_month, size: 20),
+                          tooltip: 'Générer voyages',
+                          onPressed: onGenerate,
+                          color: Colors.orange,
+                        ),
                       if (onToggleStatus != null)
                         IconButton(
                           icon: Icon(

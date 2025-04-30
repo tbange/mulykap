@@ -20,6 +20,7 @@ class TripBloc extends Bloc<TripEvent, TripState> {
     on<TripDelete>(_onTripDelete);
     on<TripFilterByStatus>(_onTripFilterByStatus);
     on<TripFilterByDate>(_onTripFilterByDate);
+    on<TripFilterByDateRange>(_onTripFilterByDateRange);
     on<TripResetFilters>(_onTripResetFilters);
   }
 
@@ -31,14 +32,15 @@ class TripBloc extends Bloc<TripEvent, TripState> {
       emit(state.copyWith(
         trips: trips,
         isLoading: false,
-        errorMessage: null,
+        error: null,
+        clearError: true,
       ));
       // Appliquer les filtres existants si nécessaire
       _applyFilters(emit);
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
-        errorMessage: e.toString(),
+        error: e.toString(),
       ));
     }
   }
@@ -106,7 +108,7 @@ class TripBloc extends Bloc<TripEvent, TripState> {
       emit(state.copyWith(isLoading: true));
       
       // Récupérer le voyage à mettre à jour
-      final trip = state.trips.firstWhere((t) => t.id == event.tripId);
+      final trip = state.trips.firstWhere((t) => t.id == event.id);
       
       // Créer un nouveau voyage avec le statut mis à jour
       final updatedTrip = trip.copyWith(status: event.status);
@@ -119,7 +121,8 @@ class TripBloc extends Bloc<TripEvent, TripState> {
       emit(state.copyWith(
         trips: trips,
         isLoading: false,
-        errorMessage: null,
+        error: null,
+        clearError: true,
       ));
       
       // Réappliquer les filtres
@@ -127,7 +130,7 @@ class TripBloc extends Bloc<TripEvent, TripState> {
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
-        errorMessage: e.toString(),
+        error: e.toString(),
       ));
     }
   }
@@ -136,14 +139,15 @@ class TripBloc extends Bloc<TripEvent, TripState> {
   Future<void> _onTripDelete(TripDelete event, Emitter<TripState> emit) async {
     try {
       emit(state.copyWith(isLoading: true));
-      await _tripRepository.deleteTrip(event.tripId);
+      await _tripRepository.deleteTrip(event.id);
       
       // Mettre à jour la liste des voyages après suppression
       final trips = await _tripRepository.getAllTrips();
       emit(state.copyWith(
         trips: trips,
         isLoading: false,
-        errorMessage: null,
+        error: null,
+        clearError: true,
       ));
       
       // Réappliquer les filtres
@@ -151,60 +155,56 @@ class TripBloc extends Bloc<TripEvent, TripState> {
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
-        errorMessage: e.toString(),
+        error: e.toString(),
       ));
     }
   }
 
   // Filtrer les voyages par statut
   void _onTripFilterByStatus(TripFilterByStatus event, Emitter<TripState> emit) {
-    emit(state.copyWith(statusFilter: event.status));
+    emit(state.copyWith(filterStatus: event.status));
     _applyFilters(emit);
   }
 
   // Filtrer les voyages par date
   void _onTripFilterByDate(TripFilterByDate event, Emitter<TripState> emit) {
-    emit(state.copyWith(dateFilter: event.date));
+    emit(state.copyWith(filterDate: event.date));
     _applyFilters(emit);
+  }
+  
+  // Filtrer par plage de dates
+  Future<void> _onTripFilterByDateRange(TripFilterByDateRange event, Emitter<TripState> emit) async {
+    try {
+      emit(state.copyWith(isLoading: true));
+      
+      // Utiliser la nouvelle méthode du repository pour récupérer les voyages dans une plage de dates
+      final trips = await _tripRepository.getTripsByDateRange(event.startDate, event.endDate);
+      
+      emit(state.copyWith(
+        trips: trips,
+        isLoading: false,
+        error: null,
+        clearError: true,
+        filterStartDate: event.startDate,
+        filterEndDate: event.endDate,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      ));
+    }
   }
 
   // Réinitialiser tous les filtres
   void _onTripResetFilters(TripResetFilters event, Emitter<TripState> emit) {
-    emit(state.copyWith(
-      statusFilter: null,
-      dateFilter: null,
-      filteredTrips: state.trips,
-    ));
+    emit(state.copyWithResetFilters());
   }
 
   // Appliquer les filtres actuels
   void _applyFilters(Emitter<TripState> emit) {
-    List<TripModel> filteredTrips = state.trips;
-
-    // Filtrer par statut si défini
-    if (state.statusFilter != null) {
-      filteredTrips = filteredTrips
-          .where((trip) => trip.status == state.statusFilter)
-          .toList();
-    }
-
-    // Filtrer par date si définie
-    if (state.dateFilter != null) {
-      filteredTrips = filteredTrips.where((trip) {
-        final tripDate = DateTime(
-          trip.departureTime.year,
-          trip.departureTime.month,
-          trip.departureTime.day,
-        );
-        final filterDate = DateTime(
-          state.dateFilter!.year,
-          state.dateFilter!.month,
-          state.dateFilter!.day,
-        );
-        return tripDate.isAtSameMomentAs(filterDate);
-      }).toList();
-    }
-
-    emit(state.copyWith(filteredTrips: filteredTrips));
+    // La logique de filtrage est maintenant gérée dans le getter filteredTrips de l'état
+    // Nous devons simplement émettre un nouveau state pour forcer la mise à jour de l'UI
+    emit(state.copyWith());
   }
 } 

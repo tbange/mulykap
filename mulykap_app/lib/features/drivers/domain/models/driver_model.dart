@@ -24,7 +24,17 @@ class DriverModel extends Equatable {
   });
 
   // Propriété calculée pour le nom complet
-  String get fullName => '$firstName $lastName';
+  String get fullName {
+    if (firstName != null && lastName != null) {
+      return '$firstName $lastName';
+    } else if (firstName != null) {
+      return firstName!;
+    } else if (lastName != null) {
+      return lastName!;
+    } else {
+      return 'Chauffeur sans nom';
+    }
+  }
 
   // Factory constructor pour créer un objet à partir d'une map
   factory DriverModel.fromMap(Map<String, dynamic> map, {Map<String, dynamic>? userProfileMap}) {
@@ -33,8 +43,8 @@ class DriverModel extends Equatable {
       licenseNumber: map['license_number'],
       userId: map['user_id'],
       agencyId: map['agency_id'],
-      firstName: userProfileMap?['first_name'] ?? '',
-      lastName: userProfileMap?['last_name'] ?? '',
+      firstName: userProfileMap?['first_name'],
+      lastName: userProfileMap?['last_name'],
       phone: userProfileMap?['phone'],
       createdAt: map['created_at'] != null ? DateTime.parse(map['created_at']) : null,
       updatedAt: map['updated_at'] != null ? DateTime.parse(map['updated_at']) : null,

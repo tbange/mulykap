@@ -2,16 +2,16 @@ import 'package:equatable/equatable.dart';
 
 /// Enum pour les statuts possibles d'un voyage
 enum TripStatus {
-  scheduled,
-  inProgress,
+  planned,
+  in_progress,
   completed,
   cancelled;
 
   String get displayName {
     switch (this) {
-      case TripStatus.scheduled:
+      case TripStatus.planned:
         return 'Programmé';
-      case TripStatus.inProgress:
+      case TripStatus.in_progress:
         return 'En cours';
       case TripStatus.completed:
         return 'Terminé';
@@ -23,7 +23,7 @@ enum TripStatus {
   static TripStatus fromString(String value) {
     return TripStatus.values.firstWhere(
       (e) => e.name.toLowerCase() == value.toLowerCase(),
-      orElse: () => TripStatus.scheduled,
+      orElse: () => TripStatus.planned,
     );
   }
 }
@@ -74,7 +74,7 @@ class TripModel extends Equatable {
       basePrice: map['base_price']?.toDouble() ?? 0.0,
       status: map['status'] != null
           ? TripStatus.fromString(map['status'])
-          : TripStatus.scheduled,
+          : TripStatus.planned,
       createdAt: map['created_at'] != null ? DateTime.parse(map['created_at']) : null,
       updatedAt: map['updated_at'] != null ? DateTime.parse(map['updated_at']) : null,
       routeName: map['route_name'],
@@ -99,12 +99,14 @@ class TripModel extends Equatable {
     };
   }
 
-  /// Créer une copie de ce modèle avec des modifications
+  /// Créer une copie du modèle avec des propriétés mises à jour
   TripModel copyWith({
     String? id,
     String? routeId,
     String? busId,
+    bool clearBusId = false,
     String? driverId,
+    bool clearDriverId = false,
     DateTime? departureTime,
     DateTime? arrivalTime,
     double? basePrice,
@@ -118,8 +120,8 @@ class TripModel extends Equatable {
     return TripModel(
       id: id ?? this.id,
       routeId: routeId ?? this.routeId,
-      busId: busId ?? this.busId,
-      driverId: driverId ?? this.driverId,
+      busId: clearBusId ? null : (busId ?? this.busId),
+      driverId: clearDriverId ? null : (driverId ?? this.driverId),
       departureTime: departureTime ?? this.departureTime,
       arrivalTime: arrivalTime ?? this.arrivalTime,
       basePrice: basePrice ?? this.basePrice,
@@ -134,18 +136,18 @@ class TripModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        routeId,
-        busId,
-        driverId,
-        departureTime,
-        arrivalTime,
-        basePrice,
-        status,
-        createdAt,
-        updatedAt,
-        routeName,
-        busPlate,
-        driverName,
-      ];
+    id,
+    routeId,
+    busId,
+    driverId,
+    departureTime,
+    arrivalTime,
+    basePrice,
+    status,
+    createdAt,
+    updatedAt,
+    routeName,
+    busPlate,
+    driverName,
+  ];
 } 

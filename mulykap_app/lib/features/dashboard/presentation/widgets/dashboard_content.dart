@@ -13,6 +13,9 @@ import 'package:mulykap_app/features/routes/presentation/screens/stops_screen.da
 import 'package:mulykap_app/features/buses/data/repositories/city_repository.dart';
 import 'package:mulykap_app/features/drivers/presentation/screens/driver_list_screen.dart';
 import 'package:mulykap_app/features/recurring_trips/recurring_trips.dart';
+import 'package:mulykap_app/features/trips/presentation/screens/trip_list_screen.dart';
+import 'package:mulykap_app/features/trips/presentation/bloc/trip_bloc.dart';
+import 'package:mulykap_app/features/trips/data/repositories/trip_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DashboardContent extends StatelessWidget {
@@ -95,33 +98,44 @@ class DashboardContent extends StatelessWidget {
           child: const RecurringTripListScreen(),
         );
       case 5:
-        return _buildPlaceholder('Maintenance');
+        // Écran des voyages générés
+        final supabaseClient = Supabase.instance.client;
+        final tripRepository = TripRepository(supabaseClient: supabaseClient);
+        
+        return BlocProvider(
+          create: (context) => TripBloc(
+            tripRepository: tripRepository,
+          ),
+          child: const TripListScreen(),
+        );
       case 6:
+        return _buildPlaceholder('Maintenance');
+      case 7:
         // Écran de gestion des chauffeurs
         return const DriverListScreen();
-      case 7:
-        return const AgencyListScreen();
       case 8:
-        return const CityListScreen();
+        return const AgencyListScreen();
       case 9:
-        return _buildPlaceholder('Réservations');
+        return const CityListScreen();
       case 10:
-        return _buildPlaceholder('Sièges & Bagages');
+        return _buildPlaceholder('Réservations');
       case 11:
-        return _buildPlaceholder('Tickets');
+        return _buildPlaceholder('Sièges & Bagages');
       case 12:
-        return _buildPlaceholder('Paiements');
+        return _buildPlaceholder('Tickets');
       case 13:
-        return _buildPlaceholder('Promotions');
+        return _buildPlaceholder('Paiements');
       case 14:
-        return _buildPlaceholder('Notifications');
+        return _buildPlaceholder('Promotions');
       case 15:
-        return _buildPlaceholder('Statistiques');
+        return _buildPlaceholder('Notifications');
       case 16:
-        return _buildPlaceholder('Rapports');
+        return _buildPlaceholder('Statistiques');
       case 17:
-        return _buildPlaceholder('Utilisateurs');
+        return _buildPlaceholder('Rapports');
       case 18:
+        return _buildPlaceholder('Utilisateurs');
+      case 19:
         return _buildPlaceholder('Configuration');
       default:
         return OverviewScreen(isDarkMode: isDarkMode);

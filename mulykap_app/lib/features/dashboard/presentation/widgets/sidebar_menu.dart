@@ -125,24 +125,30 @@ class SidebarMenu extends StatelessWidget {
                   _buildNavItem(
                     context, 
                     5, 
+                    Icons.directions_transit_rounded, 
+                    'Voyages',
+                  ),
+                  _buildNavItem(
+                    context, 
+                    6, 
                     Icons.build_rounded, 
                     'Maintenance',
                   ),
                   _buildNavItem(
                     context, 
-                    6, 
+                    7, 
                     Icons.people_rounded, 
                     'Chauffeurs',
                   ),
                   _buildNavItem(
                     context, 
-                    7, 
+                    8, 
                     Icons.business_rounded, 
                     'Agences',
                   ),
                   _buildNavItem(
                     context, 
-                    8, 
+                    9, 
                     Icons.location_city_rounded, 
                     'Villes',
                   ),
@@ -152,31 +158,31 @@ class SidebarMenu extends StatelessWidget {
                   
                   _buildNavItem(
                     context, 
-                    9, 
+                    10, 
                     Icons.event_seat_rounded, 
                     'Réservations',
                   ),
                   _buildNavItem(
                     context, 
-                    10, 
+                    11, 
                     Icons.airline_seat_recline_normal_rounded, 
                     'Sièges & Bagages',
                   ),
                   _buildNavItem(
                     context, 
-                    11, 
+                    12, 
                     Icons.confirmation_number_rounded, 
                     'Tickets',
                   ),
                   _buildNavItem(
                     context, 
-                    12, 
+                    13, 
                     Icons.payment_rounded, 
                     'Paiements',
                   ),
                   _buildNavItem(
                     context, 
-                    13, 
+                    14, 
                     Icons.discount_rounded, 
                     'Promotions',
                   ),
@@ -186,7 +192,7 @@ class SidebarMenu extends StatelessWidget {
                   
                   _buildNavItem(
                     context, 
-                    14, 
+                    15, 
                     Icons.notifications_rounded, 
                     'Notifications',
                   ),
@@ -196,13 +202,13 @@ class SidebarMenu extends StatelessWidget {
                   
                   _buildNavItem(
                     context, 
-                    15, 
+                    16, 
                     Icons.insert_chart_rounded, 
                     'Statistiques',
                   ),
                   _buildNavItem(
                     context, 
-                    16, 
+                    17, 
                     Icons.summarize_rounded, 
                     'Rapports',
                   ),
@@ -212,13 +218,13 @@ class SidebarMenu extends StatelessWidget {
                   
                   _buildNavItem(
                     context, 
-                    17, 
+                    18, 
                     Icons.people_alt_rounded, 
                     'Utilisateurs',
                   ),
                   _buildNavItem(
                     context, 
-                    18, 
+                    19, 
                     Icons.settings_rounded, 
                     'Configuration',
                   ),

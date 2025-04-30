@@ -11,6 +11,8 @@ import 'package:mulykap_app/core/presentation/router/app_router.dart';
 import 'package:mulykap_app/features/recurring_trips/presentation/widgets/recurring_trip_create_dialog.dart';
 import 'package:mulykap_app/features/recurring_trips/data/repositories/recurring_trip_repository.dart';
 import 'package:mulykap_app/features/routes/data/repositories/route_repository.dart';
+import 'package:mulykap_app/features/recurring_trips/presentation/screens/trip_generation_screen.dart';
+import 'package:mulykap_app/features/recurring_trips/presentation/widgets/trip_generation_dialog.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -216,10 +218,27 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _createNewTrip,
-        tooltip: 'Ajouter un voyage récurrent',
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Bouton pour générer des voyages à partir de tous les modèles récurrents
+          FloatingActionButton.extended(
+            heroTag: 'generate_all_trips',
+            onPressed: () {
+              TripGenerationDialog.show(context);
+            },
+            icon: const Icon(Icons.calendar_month),
+            label: const Text('Générer voyages'),
+            backgroundColor: Colors.orange,
+          ),
+          const SizedBox(height: 12),
+          // Bouton pour créer un nouveau modèle de voyage récurrent
+          FloatingActionButton(
+            heroTag: 'add_recurring_trip',
+            onPressed: _createNewTrip,
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
@@ -338,6 +357,12 @@ class _RecurringTripListScreenState extends State<RecurringTripListScreen> {
                   onEdit: () => _editTrip(trip),
                   onDelete: () => _confirmDeleteTrip(trip),
                   onToggleStatus: () => _confirmToggleStatus(trip),
+                  onGenerate: () {
+                    TripGenerationDialog.show(
+                      context,
+                      recurringTripId: trip.id,
+                    );
+                  },
                 );
               },
             ),

@@ -87,7 +87,7 @@ class TripDelete extends TripEvent {
 
 // Événement pour filtrer les voyages par statut
 class TripFilterByStatus extends TripEvent {
-  final TripStatus status;
+  final TripStatus? status;
 
   const TripFilterByStatus(this.status);
 
@@ -97,12 +97,26 @@ class TripFilterByStatus extends TripEvent {
 
 // Événement pour filtrer les voyages par date
 class TripFilterByDate extends TripEvent {
-  final DateTime date;
+  final DateTime? date;
 
   const TripFilterByDate(this.date);
 
   @override
   List<Object?> get props => [date];
+}
+
+// Événement pour filtrer les voyages par plage de dates
+class TripFilterByDateRange extends TripEvent {
+  final DateTime startDate;
+  final DateTime endDate;
+
+  const TripFilterByDateRange({
+    required this.startDate,
+    required this.endDate,
+  });
+
+  @override
+  List<Object?> get props => [startDate, endDate];
 }
 
 // Événement pour réinitialiser tous les filtres

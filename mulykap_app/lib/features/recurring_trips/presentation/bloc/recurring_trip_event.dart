@@ -66,4 +66,36 @@ class RecurringTripFilterByType extends RecurringTripEvent {
 }
 
 // Événement pour réinitialiser les filtres
-class RecurringTripResetFilters extends RecurringTripEvent {} 
+class RecurringTripResetFilters extends RecurringTripEvent {}
+
+// Événement pour générer des voyages réels à partir d'un modèle récurrent
+class RecurringTripGenerateTrips extends RecurringTripEvent {
+  final String recurringTripId;
+  final DateTime startDate;
+  final DateTime endDate;
+  final String? driverId;
+
+  const RecurringTripGenerateTrips({
+    required this.recurringTripId,
+    required this.startDate,
+    required this.endDate,
+    this.driverId,
+  });
+
+  @override
+  List<Object?> get props => [recurringTripId, startDate, endDate, driverId];
+}
+
+// Événement pour générer des voyages réels à partir de tous les modèles récurrents actifs
+class RecurringTripGenerateAllTrips extends RecurringTripEvent {
+  final DateTime startDate;
+  final DateTime endDate;
+
+  const RecurringTripGenerateAllTrips({
+    required this.startDate,
+    required this.endDate,
+  });
+
+  @override
+  List<Object?> get props => [startDate, endDate];
+} 

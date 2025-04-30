@@ -10,6 +10,8 @@ class TripState extends Equatable {
   final String? filterDriverId;
   final TripStatus? filterStatus;
   final DateTime? filterDate;
+  final DateTime? filterStartDate;
+  final DateTime? filterEndDate;
 
   const TripState({
     this.trips = const [],
@@ -20,6 +22,8 @@ class TripState extends Equatable {
     this.filterDriverId,
     this.filterStatus,
     this.filterDate,
+    this.filterStartDate,
+    this.filterEndDate,
   });
 
   // État initial
@@ -33,6 +37,36 @@ class TripState extends Equatable {
       filterDriverId: null,
       filterStatus: null,
       filterDate: null,
+      filterStartDate: null,
+      filterEndDate: null,
+    );
+  }
+
+  // Méthode copyWith générique
+  TripState copyWith({
+    List<TripModel>? trips,
+    bool? isLoading,
+    String? error,
+    String? filterRouteId,
+    String? filterBusId,
+    String? filterDriverId,
+    TripStatus? filterStatus,
+    DateTime? filterDate,
+    DateTime? filterStartDate,
+    DateTime? filterEndDate,
+    bool clearError = false,
+  }) {
+    return TripState(
+      trips: trips ?? this.trips,
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+      filterRouteId: filterRouteId ?? this.filterRouteId,
+      filterBusId: filterBusId ?? this.filterBusId,
+      filterDriverId: filterDriverId ?? this.filterDriverId,
+      filterStatus: filterStatus ?? this.filterStatus,
+      filterDate: filterDate ?? this.filterDate,
+      filterStartDate: filterStartDate ?? this.filterStartDate,
+      filterEndDate: filterEndDate ?? this.filterEndDate,
     );
   }
 
@@ -47,6 +81,8 @@ class TripState extends Equatable {
       filterDriverId: filterDriverId,
       filterStatus: filterStatus,
       filterDate: filterDate,
+      filterStartDate: filterStartDate,
+      filterEndDate: filterEndDate,
     );
   }
 
@@ -61,6 +97,8 @@ class TripState extends Equatable {
       filterDriverId: filterDriverId,
       filterStatus: filterStatus,
       filterDate: filterDate,
+      filterStartDate: filterStartDate,
+      filterEndDate: filterEndDate,
     );
   }
 
@@ -75,6 +113,8 @@ class TripState extends Equatable {
       filterDriverId: filterDriverId,
       filterStatus: filterStatus,
       filterDate: filterDate,
+      filterStartDate: filterStartDate,
+      filterEndDate: filterEndDate,
     );
   }
 
@@ -85,6 +125,8 @@ class TripState extends Equatable {
     String? filterDriverId,
     TripStatus? filterStatus,
     DateTime? filterDate,
+    DateTime? filterStartDate,
+    DateTime? filterEndDate,
   }) {
     return TripState(
       trips: trips,
@@ -95,6 +137,8 @@ class TripState extends Equatable {
       filterDriverId: filterDriverId ?? this.filterDriverId,
       filterStatus: filterStatus ?? this.filterStatus,
       filterDate: filterDate ?? this.filterDate,
+      filterStartDate: filterStartDate ?? this.filterStartDate,
+      filterEndDate: filterEndDate ?? this.filterEndDate,
     );
   }
 
@@ -109,11 +153,16 @@ class TripState extends Equatable {
       filterDriverId: null,
       filterStatus: null,
       filterDate: null,
+      filterStartDate: null,
+      filterEndDate: null,
     );
   }
 
   // Vérifier si l'état contient une erreur
   bool get isError => error != null;
+  
+  // Message d'erreur pour l'affichage
+  String? get errorMessage => error;
 
   // Vérifier si des filtres sont actifs
   bool get hasFilters =>
@@ -121,7 +170,13 @@ class TripState extends Equatable {
       filterBusId != null ||
       filterDriverId != null ||
       filterStatus != null ||
-      filterDate != null;
+      filterDate != null ||
+      filterStartDate != null ||
+      filterEndDate != null;
+      
+  // Getters pour faciliter l'accès aux filtres dans l'UI
+  TripStatus? get statusFilter => filterStatus;
+  DateTime? get dateFilter => filterDate;
 
   // Liste des voyages filtrés
   List<TripModel> get filteredTrips {
@@ -158,6 +213,33 @@ class TripState extends Equatable {
         return tripDate.isAtSameMomentAs(filter);
       }).toList();
     }
+    
+    if (filterStartDate != null && filterEndDate != null) {
+      filteredList = filteredList.where((trip) {
+        final tripDate = DateTime(
+          trip.departureTime.year,
+          trip.departureTime.month,
+          trip.departureTime.day,
+        );
+        
+        final startDate = DateTime(
+          filterStartDate!.year,
+          filterStartDate!.month,
+          filterStartDate!.day,
+        );
+        
+        final endDate = DateTime(
+          filterEndDate!.year,
+          filterEndDate!.month,
+          filterEndDate!.day,
+        );
+        
+        return (tripDate.isAtSameMomentAs(startDate) || 
+                tripDate.isAfter(startDate)) && 
+               (tripDate.isAtSameMomentAs(endDate) || 
+                tripDate.isBefore(endDate));
+      }).toList();
+    }
 
     return filteredList;
   }
@@ -172,5 +254,7 @@ class TripState extends Equatable {
         filterDriverId,
         filterStatus,
         filterDate,
+        filterStartDate,
+        filterEndDate,
       ];
 } 

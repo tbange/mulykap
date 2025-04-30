@@ -21,9 +21,9 @@ class TripItem extends StatelessWidget {
   // Couleur selon le statut du voyage
   Color _getStatusColor(TripStatus status) {
     switch (status) {
-      case TripStatus.scheduled:
+      case TripStatus.planned:
         return Colors.blue;
-      case TripStatus.inProgress:
+      case TripStatus.in_progress:
         return Colors.green;
       case TripStatus.completed:
         return Colors.grey;
@@ -35,9 +35,9 @@ class TripItem extends StatelessWidget {
   // Icône selon le statut du voyage
   IconData _getStatusIcon(TripStatus status) {
     switch (status) {
-      case TripStatus.scheduled:
+      case TripStatus.planned:
         return Icons.schedule;
-      case TripStatus.inProgress:
+      case TripStatus.in_progress:
         return Icons.directions_bus;
       case TripStatus.completed:
         return Icons.check_circle;

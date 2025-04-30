@@ -12,31 +12,29 @@ class DriverRepository {
   // Récupérer tous les chauffeurs avec leurs informations de profil
   Future<List<DriverModel>> getAllDrivers() async {
     try {
-      // Récupérer les chauffeurs
+      // Récupérer les chauffeurs avec leurs données de base sans utiliser la jointure problématique
       final driversResponse = await _supabaseClient
           .from('drivers')
-          .select()
+          .select('*')
           .order('created_at', ascending: false);
 
       List<DriverModel> drivers = [];
 
       for (var driverData in driversResponse) {
-        // Récupérer les informations du profil utilisateur si disponible
-        Map<String, dynamic>? userProfileData;
+        final Map<String, dynamic> driverMap = Map<String, dynamic>.from(driverData);
         
-        if (driverData['user_id'] != null) {
-          final userProfileResponse = await _supabaseClient
-              .from('user_profiles')
-              .select()
-              .eq('user_id', driverData['user_id'])
-              .maybeSingle();
-          
-          if (userProfileResponse != null) {
-            userProfileData = userProfileResponse;
-          }
-        }
-
-        drivers.add(DriverModel.fromMap(driverData, userProfileMap: userProfileData));
+        // Créer le modèle du chauffeur en utilisant directement les champs locaux
+        drivers.add(DriverModel(
+          id: driverMap['id'],
+          licenseNumber: driverMap['license_number'] ?? '',
+          userId: driverMap['user_id'],
+          agencyId: driverMap['agency_id'],
+          firstName: driverMap['first_name'],
+          lastName: driverMap['last_name'],
+          phone: driverMap['phone_number'],
+          createdAt: driverMap['created_at'] != null ? DateTime.parse(driverMap['created_at']) : null,
+          updatedAt: driverMap['updated_at'] != null ? DateTime.parse(driverMap['updated_at']) : null,
+        ));
       }
 
       return drivers;
@@ -50,25 +48,22 @@ class DriverRepository {
     try {
       final driverResponse = await _supabaseClient
           .from('drivers')
-          .select()
+          .select('*')
           .eq('id', id)
           .single();
 
-      Map<String, dynamic>? userProfileData;
-      
-      if (driverResponse['user_id'] != null) {
-        final userProfileResponse = await _supabaseClient
-            .from('user_profiles')
-            .select()
-            .eq('user_id', driverResponse['user_id'])
-            .maybeSingle();
-        
-        if (userProfileResponse != null) {
-          userProfileData = userProfileResponse;
-        }
-      }
-
-      return DriverModel.fromMap(driverResponse, userProfileMap: userProfileData);
+      // Créer le modèle en utilisant directement les champs du chauffeur
+      return DriverModel(
+        id: driverResponse['id'],
+        licenseNumber: driverResponse['license_number'] ?? '',
+        userId: driverResponse['user_id'],
+        agencyId: driverResponse['agency_id'],
+        firstName: driverResponse['first_name'],
+        lastName: driverResponse['last_name'],
+        phone: driverResponse['phone_number'],
+        createdAt: driverResponse['created_at'] != null ? DateTime.parse(driverResponse['created_at']) : null,
+        updatedAt: driverResponse['updated_at'] != null ? DateTime.parse(driverResponse['updated_at']) : null,
+      );
     } catch (e) {
       throw Exception('Erreur lors de la récupération du chauffeur: $e');
     }
@@ -101,16 +96,21 @@ class DriverRepository {
           ),
         );
         
-        userId = authResponse.user.id;
-        
-        // Créer le profil utilisateur
-        await _supabaseClient.from('user_profiles').insert({
-          'user_id': userId,
-          'first_name': firstName,
-          'last_name': lastName,
-          'phone': phone,
-          'status': 'active',
-        });
+        // Vérifier que l'utilisateur a été créé correctement
+        if (authResponse.user != null) {
+          userId = authResponse.user!.id;
+          
+          // Créer le profil utilisateur
+          await _supabaseClient.from('user_profiles').insert({
+            'user_id': userId,
+            'first_name': firstName,
+            'last_name': lastName,
+            'phone': phone,
+            'status': 'active',
+          });
+        } else {
+          throw Exception('Échec de la création de l\'utilisateur');
+        }
       }
       
       // Créer le chauffeur
@@ -133,6 +133,11 @@ class DriverRepository {
   // Mettre à jour un chauffeur
   Future<DriverModel> updateDriver(DriverModel driver) async {
     try {
+      // Vérifier que l'ID du chauffeur est valide
+      if (driver.id.isEmpty) {
+        throw Exception('ID du chauffeur non valide');
+      }
+      
       await _supabaseClient
           .from('drivers')
           .update({
@@ -144,17 +149,18 @@ class DriverRepository {
       
       // Mettre à jour le profil utilisateur si disponible
       if (driver.userId != null && (driver.firstName != null || driver.lastName != null || driver.phone != null)) {
-        final updateData = {};
+        final updateData = <String, dynamic>{};
         
         if (driver.firstName != null) updateData['first_name'] = driver.firstName;
         if (driver.lastName != null) updateData['last_name'] = driver.lastName;
         if (driver.phone != null) updateData['phone'] = driver.phone;
         
         if (updateData.isNotEmpty) {
+          final String userId = driver.userId!;
           await _supabaseClient
               .from('user_profiles')
               .update(updateData)
-              .eq('user_id', driver.userId);
+              .eq('user_id', userId);
         }
       }
       
@@ -184,30 +190,32 @@ class DriverRepository {
   // Récupérer les chauffeurs par agence
   Future<List<DriverModel>> getDriversByAgency(String agencyId) async {
     try {
+      if (agencyId.isEmpty) {
+        throw Exception('ID d\'agence non valide');
+      }
+      
       final driversResponse = await _supabaseClient
           .from('drivers')
-          .select()
+          .select('*')
           .eq('agency_id', agencyId)
           .order('created_at', ascending: false);
 
       List<DriverModel> drivers = [];
 
       for (var driverData in driversResponse) {
-        Map<String, dynamic>? userProfileData;
+        final Map<String, dynamic> driverMap = Map<String, dynamic>.from(driverData);
         
-        if (driverData['user_id'] != null) {
-          final userProfileResponse = await _supabaseClient
-              .from('user_profiles')
-              .select()
-              .eq('user_id', driverData['user_id'])
-              .maybeSingle();
-          
-          if (userProfileResponse != null) {
-            userProfileData = userProfileResponse;
-          }
-        }
-
-        drivers.add(DriverModel.fromMap(driverData, userProfileMap: userProfileData));
+        drivers.add(DriverModel(
+          id: driverMap['id'],
+          licenseNumber: driverMap['license_number'] ?? '',
+          userId: driverMap['user_id'],
+          agencyId: driverMap['agency_id'],
+          firstName: driverMap['first_name'],
+          lastName: driverMap['last_name'],
+          phone: driverMap['phone_number'],
+          createdAt: driverMap['created_at'] != null ? DateTime.parse(driverMap['created_at']) : null,
+          updatedAt: driverMap['updated_at'] != null ? DateTime.parse(driverMap['updated_at']) : null,
+        ));
       }
 
       return drivers;

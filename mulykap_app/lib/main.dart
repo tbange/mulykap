@@ -32,6 +32,7 @@ import 'package:mulykap_app/theme/app_theme.dart';
 import 'package:mulykap_app/features/drivers/domain/repositories/driver_repository.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:mulykap_app/features/recurring_trips/recurring_trips.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,6 +76,9 @@ class MyApp extends StatelessWidget {
         RepositoryProvider<DriverRepository>(
           create: (context) => DriverRepository(),
         ),
+        RepositoryProvider<RecurringTripRepository>(
+          create: (context) => RecurringTripRepository(supabaseClient: supabaseClient),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -101,6 +105,11 @@ class MyApp extends StatelessWidget {
           BlocProvider<CityBloc>(
             create: (context) => CityBloc(
               cityRepository: RepositoryProvider.of<CityRepository>(context),
+            ),
+          ),
+          BlocProvider<RecurringTripBloc>(
+            create: (context) => RecurringTripBloc(
+              repository: RepositoryProvider.of<RecurringTripRepository>(context),
             ),
           ),
         ],

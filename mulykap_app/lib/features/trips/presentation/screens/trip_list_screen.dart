@@ -3,11 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:mulykap_app/core/presentation/widgets/error_message.dart';
 import 'package:mulykap_app/core/presentation/widgets/loading_spinner.dart';
+import 'package:mulykap_app/features/buses/data/repositories/bus_repository.dart';
+import 'package:mulykap_app/features/buses/domain/models/bus_model.dart';
+import 'package:mulykap_app/features/drivers/data/repositories/driver_repository.dart';
+import 'package:mulykap_app/features/drivers/domain/models/driver_model.dart';
 import 'package:mulykap_app/features/trips/domain/models/trip_model.dart';
 import 'package:mulykap_app/features/trips/presentation/bloc/trip_bloc.dart';
 import 'package:mulykap_app/features/trips/presentation/bloc/trip_event.dart';
 import 'package:mulykap_app/features/trips/presentation/bloc/trip_state.dart';
-import 'package:mulykap_app/features/trips/presentation/widgets/trip_item.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class TripListScreen extends StatefulWidget {
   const TripListScreen({Key? key}) : super(key: key);
@@ -16,15 +20,101 @@ class TripListScreen extends StatefulWidget {
   State<TripListScreen> createState() => _TripListScreenState();
 }
 
-class _TripListScreenState extends State<TripListScreen> {
+class _TripListScreenState extends State<TripListScreen> with SingleTickerProviderStateMixin {
   DateTime? _selectedDate;
   TripStatus? _selectedStatus;
+  TabController? _tabController;
+  final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
+  
+  List<DriverModel> _drivers = [];
+  List<BusModel> _buses = [];
+  bool _isLoadingDrivers = false;
+  bool _isLoadingBuses = false;
+  
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    
     // Chargement initial des voyages
     context.read<TripBloc>().add(TripLoadAll());
+    
+    // Chargement des chauffeurs et des bus pour les assignations
+    _loadDrivers();
+    _loadBuses();
+  }
+  
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+  
+  Future<void> _loadDrivers() async {
+    setState(() {
+      _isLoadingDrivers = true;
+    });
+    
+    try {
+      final driverRepository = DriverRepository(
+        supabaseClient: Supabase.instance.client,
+      );
+      
+      final drivers = await driverRepository.getAllDrivers();
+      
+      setState(() {
+        _drivers = drivers;
+        _isLoadingDrivers = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors du chargement des chauffeurs: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      
+      setState(() {
+        _isLoadingDrivers = false;
+      });
+    }
+  }
+  
+  Future<void> _loadBuses() async {
+    setState(() {
+      _isLoadingBuses = true;
+    });
+    
+    try {
+      final busRepository = BusRepository(
+        supabaseClient: Supabase.instance.client,
+      );
+      
+      final buses = await busRepository.getAllBuses();
+      
+      setState(() {
+        _buses = buses;
+        _isLoadingBuses = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors du chargement des bus: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      
+      setState(() {
+        _isLoadingBuses = false;
+      });
+    }
   }
 
   @override
@@ -33,12 +123,50 @@ class _TripListScreenState extends State<TripListScreen> {
       appBar: AppBar(
         title: const Text('Voyages'),
         actions: [
+          // Bouton de filtre par date
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            tooltip: 'Filtrer par date',
+            onPressed: _selectDateFilter,
+          ),
           // Bouton pour ouvrir le menu de filtres
           IconButton(
             icon: const Icon(Icons.filter_list),
+            tooltip: 'Filtrer par statut',
             onPressed: _showFilterBottomSheet,
           ),
+          // Bouton pour rafraîchir la liste
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Rafraîchir',
+            onPressed: () => context.read<TripBloc>().add(TripLoadAll()),
+          ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Tous'),
+            Tab(text: 'Aujourd\'hui'),
+            Tab(text: 'À venir'),
+          ],
+          onTap: (index) {
+            switch (index) {
+              case 0:
+                context.read<TripBloc>().add(TripResetFilters());
+                break;
+              case 1:
+                context.read<TripBloc>().add(TripFilterByDate(DateTime.now()));
+                break;
+              case 2:
+                final today = DateTime.now();
+                context.read<TripBloc>().add(TripFilterByDateRange(
+                  startDate: today.add(const Duration(days: 1)), 
+                  endDate: today.add(const Duration(days: 10)),
+                ));
+                break;
+            }
+          },
+        ),
       ),
       body: BlocBuilder<TripBloc, TripState>(
         builder: (context, state) {
@@ -122,7 +250,7 @@ class _TripListScreenState extends State<TripListScreen> {
                                 _selectedStatus = null;
                               });
                               context.read<TripBloc>().add(
-                                    TripFilterByStatus(status: null),
+                                    TripFilterByStatus(null),
                                   );
                             },
                           ),
@@ -133,7 +261,7 @@ class _TripListScreenState extends State<TripListScreen> {
                         if (state.dateFilter != null)
                           Chip(
                             label: Text(
-                              DateFormat('dd/MM/yyyy').format(state.dateFilter!),
+                              _dateFormat.format(state.dateFilter!),
                             ),
                             deleteIcon: const Icon(Icons.clear, size: 16),
                             onDeleted: () {
@@ -141,7 +269,7 @@ class _TripListScreenState extends State<TripListScreen> {
                                 _selectedDate = null;
                               });
                               context.read<TripBloc>().add(
-                                    TripFilterByDate(date: null),
+                                    TripFilterByDate(null),
                                   );
                             },
                           ),
@@ -162,6 +290,7 @@ class _TripListScreenState extends State<TripListScreen> {
                             setState(() {
                               _selectedDate = null;
                               _selectedStatus = null;
+                              _tabController?.index = 0;
                             });
                             context.read<TripBloc>().add(TripResetFilters());
                           },
@@ -173,16 +302,12 @@ class _TripListScreenState extends State<TripListScreen> {
                 // Liste des voyages
                 Expanded(
                   child: ListView.builder(
+                    controller: _scrollController,
                     itemCount: trips.length,
+                    padding: const EdgeInsets.all(8),
                     itemBuilder: (context, index) {
                       final trip = trips[index];
-                      return TripItem(
-                        trip: trip,
-                        onTap: () => _navigateToTripDetail(trip),
-                        onEdit: () => _editTrip(trip),
-                        onDelete: () => _confirmDeleteTrip(trip),
-                        onStatusChange: () => _showChangeStatusDialog(trip),
-                      );
+                      return _buildTripCard(trip);
                     },
                   ),
                 ),
@@ -192,123 +317,326 @@ class _TripListScreenState extends State<TripListScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _createNewTrip,
-        tooltip: 'Ajouter un voyage',
-        child: const Icon(Icons.add),
+        onPressed: () {
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOut,
+          );
+        },
+        tooltip: 'Retour en haut',
+        child: const Icon(Icons.arrow_upward),
+      ),
+    );
+  }
+  
+  Widget _buildTripCard(TripModel trip) {
+    final bool needsDriver = trip.driverId == null;
+    final bool needsBus = trip.busId == null;
+    
+    // Calculer le temps jusqu'au départ
+    final now = DateTime.now();
+    final Duration timeUntilDeparture = trip.departureTime.difference(now);
+    
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // En-tête de la carte
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _getStatusColor(trip.status).withOpacity(0.2),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    trip.routeName ?? 'Itinéraire inconnu',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Chip(
+                  label: Text(
+                    trip.status.displayName,
+                    style: TextStyle(
+                      color: _getStatusColor(trip.status),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  backgroundColor: _getStatusColor(trip.status).withOpacity(0.2),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
+          
+          // Contenu de la carte
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Informations de départ et d'arrivée
+                Row(
+                  children: [
+                    const Icon(Icons.schedule, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Départ: ${_dateFormat.format(trip.departureTime)} à ${DateFormat('HH:mm').format(trip.departureTime)}',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Arrivée: ${_dateFormat.format(trip.arrivalTime)} à ${DateFormat('HH:mm').format(trip.arrivalTime)}',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const Divider(height: 24),
+                
+                // Informations du bus
+                Row(
+                  children: [
+                    const Icon(Icons.directions_bus, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        trip.busPlate != null 
+                            ? 'Bus: ${trip.busPlate}' 
+                            : 'Bus: Non assigné',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: needsBus ? Colors.red : null,
+                          fontWeight: needsBus ? FontWeight.bold : null,
+                        ),
+                      ),
+                    ),
+                    if (needsBus)
+                      ElevatedButton.icon(
+                        onPressed: () => _showBusSelectionDialog(trip),
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Assigner'),
+                        style: ElevatedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                  ],
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Informations du chauffeur
+                Row(
+                  children: [
+                    const Icon(Icons.person, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        trip.driverName != null && trip.driverName!.isNotEmpty
+                            ? 'Chauffeur: ${trip.driverName}' 
+                            : 'Chauffeur: Non assigné',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: needsDriver ? Colors.red : null,
+                          fontWeight: needsDriver ? FontWeight.bold : null,
+                        ),
+                      ),
+                    ),
+                    if (needsDriver)
+                      ElevatedButton.icon(
+                        onPressed: () => _showDriverSelectionDialog(trip),
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Assigner'),
+                        style: ElevatedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                  ],
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Prix et informations supplémentaires
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Prix: ${trip.basePrice.toInt()} FCFA',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (trip.status == TripStatus.planned && timeUntilDeparture.isNegative)
+                      _buildActionButton(
+                        'Démarrer',
+                        Icons.play_arrow,
+                        Colors.green,
+                        () => _updateTripStatus(trip, TripStatus.in_progress),
+                      ),
+                    if (trip.status == TripStatus.in_progress)
+                      _buildActionButton(
+                        'Terminer',
+                        Icons.check,
+                        Colors.blue,
+                        () => _updateTripStatus(trip, TripStatus.completed),
+                      ),
+                    if (trip.status == TripStatus.planned && timeUntilDeparture.inMinutes > 30)
+                      _buildActionButton(
+                        'Annuler',
+                        Icons.cancel,
+                        Colors.red,
+                        () => _updateTripStatus(trip, TripStatus.cancelled),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onPressed) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16, color: color),
+      label: Text(
+        label,
+        style: TextStyle(color: color),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color.withOpacity(0.1),
+        visualDensity: VisualDensity.compact,
       ),
     );
   }
 
-  // Afficher la boîte de dialogue pour filtrer les voyages
+  Color _getStatusColor(TripStatus status) {
+    switch (status) {
+      case TripStatus.planned:
+        return Colors.orange;
+      case TripStatus.in_progress:
+        return Colors.blue;
+      case TripStatus.completed:
+        return Colors.green;
+      case TripStatus.cancelled:
+        return Colors.red;
+    }
+  }
+
+  Future<void> _selectDateFilter() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2023),
+      lastDate: DateTime(2030),
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+      
+      context.read<TripBloc>().add(TripFilterByDate(pickedDate));
+    }
+  }
+
   void _showFilterBottomSheet() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Filtrer les voyages',
+                    'Filtrer par statut',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
-                  // Filtre par statut
-                  const Text('Statut:'),
-                  const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
-                    children: TripStatus.values.map((status) {
-                      final isSelected = _selectedStatus == status;
-                      return FilterChip(
-                        label: Text(status.displayName),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedStatus = selected ? status : null;
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Filtre par date
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Date:'),
-                      if (_selectedDate != null)
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedDate = null;
-                            });
-                          },
-                          child: const Text('Effacer'),
-                        ),
+                      _buildStatusFilterChip(
+                        TripStatus.planned,
+                        'Programmé',
+                        Icons.schedule,
+                        Colors.orange,
+                        setState,
+                      ),
+                      _buildStatusFilterChip(
+                        TripStatus.in_progress,
+                        'En cours',
+                        Icons.directions_bus,
+                        Colors.blue,
+                        setState,
+                      ),
+                      _buildStatusFilterChip(
+                        TripStatus.completed,
+                        'Terminé',
+                        Icons.check_circle,
+                        Colors.green,
+                        setState,
+                      ),
+                      _buildStatusFilterChip(
+                        TripStatus.cancelled,
+                        'Annulé',
+                        Icons.cancel,
+                        Colors.red,
+                        setState,
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedDate ?? DateTime.now(),
-                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (date != null) {
-                        setState(() {
-                          _selectedDate = date;
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today),
-                          const SizedBox(width: 8),
-                          Text(
-                            _selectedDate == null
-                                ? 'Sélectionner une date'
-                                : DateFormat('dd/MM/yyyy').format(_selectedDate!),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Boutons d'action
+                  const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
                         onPressed: () {
                           setState(() {
-                            _selectedDate = null;
                             _selectedStatus = null;
                           });
+                          
+                          this.setState(() {
+                            _selectedStatus = null;
+                          });
+                          
+                          Navigator.pop(context);
+                          
+                          context.read<TripBloc>().add(
+                            TripFilterByStatus(null),
+                          );
                         },
                         child: const Text('Réinitialiser'),
                       ),
@@ -316,15 +644,10 @@ class _TripListScreenState extends State<TripListScreen> {
                       ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          // Appliquer les filtres
+                          
                           if (_selectedStatus != null) {
                             context.read<TripBloc>().add(
-                                  TripFilterByStatus(status: _selectedStatus),
-                                );
-                          }
-                          if (_selectedDate != null) {
-                            context.read<TripBloc>().add(
-                                  TripFilterByDate(date: _selectedDate),
+                              TripFilterByStatus(_selectedStatus),
                                 );
                           }
                         },
@@ -341,102 +664,221 @@ class _TripListScreenState extends State<TripListScreen> {
     );
   }
 
-  // Navigation vers l'écran de détail d'un voyage
-  void _navigateToTripDetail(TripModel trip) {
-    // TODO: Implémenter la navigation vers l'écran de détail
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Afficher les détails du voyage: ${trip.id}'),
-        duration: const Duration(seconds: 1),
+  Widget _buildStatusFilterChip(
+    TripStatus status,
+    String label,
+    IconData icon,
+    Color color,
+    StateSetter setState,
+  ) {
+    final isSelected = _selectedStatus == status;
+    
+    return FilterChip(
+      label: Text(label),
+      avatar: Icon(
+        icon,
+        color: isSelected ? Colors.white : color,
+        size: 18,
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          _selectedStatus = selected ? status : null;
+        });
+        
+        this.setState(() {
+          _selectedStatus = selected ? status : null;
+        });
+      },
+      backgroundColor: color.withOpacity(0.1),
+      selectedColor: color,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : null,
       ),
     );
   }
 
-  // Modifier un voyage existant
-  void _editTrip(TripModel trip) {
-    // TODO: Implémenter la modification d'un voyage
+  Future<void> _showBusSelectionDialog(TripModel trip) async {
+    if (_isLoadingBuses) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Modifier le voyage: ${trip.id}'),
-        duration: const Duration(seconds: 1),
+        const SnackBar(
+          content: Text('Chargement des bus en cours...'),
       ),
     );
+      return;
   }
 
-  // Créer un nouveau voyage
-  void _createNewTrip() {
-    // TODO: Implémenter la création d'un voyage
+    if (_buses.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Créer un nouveau voyage'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-
-  // Confirmation de suppression d'un voyage
-  void _confirmDeleteTrip(TripModel trip) {
-    showDialog(
+          content: Text('Aucun bus disponible'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    String? selectedBusId;
+    
+    await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Supprimer ce voyage?'),
-        content: const Text(
-          'Cette action est irréversible. Voulez-vous vraiment supprimer ce voyage?'
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Sélectionner un bus'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _buses.length,
+                  itemBuilder: (context, index) {
+                    final bus = _buses[index];
+                    return RadioListTile<String>(
+                      title: Text('${bus.licensePlate} (${bus.model})'),
+                      subtitle: Text('Capacité: ${bus.capacity} sièges'),
+                      value: bus.id,
+                      groupValue: selectedBusId,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedBusId = value;
+                        });
+                      },
+                    );
+                  },
+                );
+              },
+            ),
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
+              onPressed: () => Navigator.pop(context),
             child: const Text('Annuler'),
           ),
-          TextButton(
+            ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              context.read<TripBloc>().add(TripDelete(id: trip.id));
-            },
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Boîte de dialogue pour changer le statut d'un voyage
-  void _showChangeStatusDialog(TripModel trip) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Changer le statut'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: TripStatus.values.map((status) {
-            return RadioListTile<TripStatus>(
-              title: Text(status.displayName),
-              value: status,
-              groupValue: trip.status,
-              onChanged: (newStatus) {
-                Navigator.pop(context);
-                if (newStatus != null && newStatus != trip.status) {
-                  context.read<TripBloc>().add(
-                        TripUpdateStatus(
-                          id: trip.id,
-                          status: newStatus,
-                        ),
-                      );
+                
+                if (selectedBusId != null) {
+                  _assignBus(trip, selectedBusId!);
                 }
               },
-            );
-          }).toList(),
+              child: const Text('Assigner'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  Future<void> _showDriverSelectionDialog(TripModel trip) async {
+    if (_isLoadingDrivers) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chargement des chauffeurs en cours...'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('Annuler'),
+      );
+      return;
+    }
+    
+    if (_drivers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun chauffeur disponible'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    String? selectedDriverId;
+    
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Sélectionner un chauffeur'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _drivers.length,
+                  itemBuilder: (context, index) {
+                    final driver = _drivers[index];
+                    return RadioListTile<String>(
+                      title: Text('${driver.firstName} ${driver.lastName}'),
+                      subtitle: Text('Permis: ${driver.licenseNumber ?? "Non spécifié"}'),
+                      value: driver.id,
+                      groupValue: selectedDriverId,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedDriverId = value;
+                        });
+                      },
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                
+                if (selectedDriverId != null) {
+                  _assignDriver(trip, selectedDriverId!);
+                }
+              },
+              child: const Text('Assigner'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  Future<void> _assignBus(TripModel trip, String busId) async {
+    final selectedBus = _buses.firstWhere((bus) => bus.id == busId);
+    
+    // Mettre à jour le voyage avec le nouveau bus
+    context.read<TripBloc>().add(
+      TripUpdate(
+        trip.copyWith(
+          busId: busId,
+          busPlate: selectedBus.licensePlate,
+        ),
+      ),
+    );
+  }
+  
+  Future<void> _assignDriver(TripModel trip, String driverId) async {
+    final selectedDriver = _drivers.firstWhere((driver) => driver.id == driverId);
+    
+    // Mettre à jour le voyage avec le nouveau chauffeur
+    context.read<TripBloc>().add(
+      TripUpdate(
+        trip.copyWith(
+          driverId: driverId,
+          driverName: '${selectedDriver.firstName} ${selectedDriver.lastName}',
+        ),
+      ),
+    );
+  }
+  
+  Future<void> _updateTripStatus(TripModel trip, TripStatus newStatus) async {
+    // Mettre à jour le statut du voyage
+    context.read<TripBloc>().add(
+      TripUpdate(
+        trip.copyWith(
+          status: newStatus,
+        ),
       ),
     );
   }
